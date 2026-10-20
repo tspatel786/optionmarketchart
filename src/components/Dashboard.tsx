@@ -32,7 +32,12 @@ export const Dashboard: React.FC = () => {
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState<boolean>(false);
   const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(() => {
     const saved = localStorage.getItem('TELEGRAM_CONFIG');
-    return saved ? JSON.parse(saved) : { botToken: '', chatId: '' };
+    return saved
+      ? JSON.parse(saved)
+      : {
+          botToken: '8932116600:AAE3X71nap5n6aDu-sttvmVZMh_2_F68ax0',
+          chatId: '1760361828',
+        };
   });
 
   // Market Data state
