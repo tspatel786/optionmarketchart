@@ -63,9 +63,9 @@ export const BacktestView: React.FC<BacktestViewProps> = ({ candles, instrument 
           </div>
 
           <div className="bg-cardBg border border-borderCol p-3.5 rounded-xl text-center">
-            <span className="text-[11px] text-gray-400 block font-medium">Win Rate</span>
+            <span className="text-[11px] text-gray-400 block font-medium">Net Win Rate</span>
             <span className="text-xl font-black text-emerald-400 font-mono mt-1 block">
-              {summary.winRate}%
+              {summary.netWinRate}%
             </span>
           </div>
 
@@ -84,11 +84,11 @@ export const BacktestView: React.FC<BacktestViewProps> = ({ candles, instrument 
           </div>
 
           <div className="bg-cardBg border border-borderCol p-3.5 rounded-xl text-center">
-            <span className="text-[11px] text-gray-400 block font-medium">Net P&L Points</span>
+            <span className="text-[11px] text-gray-400 block font-medium">Net Realized P&L</span>
             <span className={`text-xl font-black font-mono mt-1 block ${
-              summary.totalPnlPoints >= 0 ? 'text-emerald-400' : 'text-red-400'
+              summary.totalNetPnlInr >= 0 ? 'text-emerald-400' : 'text-red-400'
             }`}>
-              {summary.totalPnlPoints >= 0 ? '+' : ''}{summary.totalPnlPoints} pts
+              {summary.totalNetPnlInr >= 0 ? '+' : ''}₹{summary.totalNetPnlInr}
             </span>
           </div>
 
@@ -168,9 +168,9 @@ export const BacktestView: React.FC<BacktestViewProps> = ({ candles, instrument 
                         </span>
                       </td>
                       <td className={`py-3 px-4 font-bold ${
-                        t.pnlPoints >= 0 ? 'text-emerald-400' : 'text-red-400'
+                        t.netPnlPoints >= 0 ? 'text-emerald-400' : 'text-red-400'
                       }`}>
-                        {t.pnlPoints >= 0 ? '+' : ''}{t.pnlPoints}
+                        {t.netPnlPoints >= 0 ? '+' : ''}{t.netPnlPoints} pts (₹{t.netPnlInr})
                       </td>
                       <td className="py-3 px-4 text-gray-400">
                         {t.barsHeld} bars (5m)

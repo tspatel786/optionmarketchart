@@ -6,6 +6,7 @@ describe('TelegramService & Outbox Queueing', () => {
   const dummySignal: EvaluatedSignal = {
     instrument: 'NIFTY 50',
     signalType: 'BUY',
+    canonicalSignalType: 'BUY CE',
     candleTimestamp: 1729485000,
     candleDateTimeIST: '2026-10-20 09:35:00',
     ruleVersion: 1,

@@ -13,9 +13,10 @@ import {
 import { RuleManagement } from './components/RuleManagement';
 import { Dashboard } from './components/Dashboard';
 import { BacktestView } from './components/BacktestView';
+import { PaperTradingPortfolio } from './components/PaperTradingPortfolio';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'rules' | 'backtest'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'paper_trading' | 'rules' | 'backtest'>('dashboard');
   const [backtestInstrument, setBacktestInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
 
   return (
@@ -30,17 +31,17 @@ export const App: React.FC = () => {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <h1 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">
-                  Market Signal Engine
+                  Autonomous Signal Engine
                 </h1>
                 <span className="text-[9px] font-mono uppercase bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-bold">
-                  80% A+ Filter
+                  80% Confluence
                 </span>
                 <span className="text-[9px] font-mono uppercase bg-amber-950 text-amber-300 border border-amber-800 px-1.5 py-0.5 rounded font-bold">
                   IST
                 </span>
               </div>
               <p className="text-[11px] text-gray-400 truncate">
-                NIFTY 50 & BANK NIFTY 5M High-Probability Strategy
+                NIFTY 50 & BANK NIFTY 24/7 Unattended Market Signal & Paper-Trading Platform
               </p>
             </div>
           </div>
@@ -57,6 +58,18 @@ export const App: React.FC = () => {
             >
               <BarChart3 className="w-3.5 h-3.5" />
               Live Signals
+            </button>
+
+            <button
+              onClick={() => setActiveTab('paper_trading')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                activeTab === 'paper_trading'
+                  ? 'bg-neutralBlue text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-darkBg border border-borderCol/40'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Paper Trading
             </button>
 
             <button
@@ -93,7 +106,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-accentGold flex-shrink-0" />
             <span className="text-[11px] sm:text-xs leading-tight">
-              <strong>Disclaimer:</strong> Analytical signals for educational purposes only. Not financial advice.
+              <strong>Disclaimer:</strong> Analytical signals & hypothetical paper trading only. No broker orders placed. Not financial advice.
             </span>
           </div>
           <div className="flex items-center gap-3 text-[10px] sm:text-xs">
@@ -107,6 +120,7 @@ export const App: React.FC = () => {
         </div>
 
         {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'paper_trading' && <PaperTradingPortfolio />}
         {activeTab === 'rules' && <RuleManagement />}
         {activeTab === 'backtest' && (
           <div className="space-y-4">

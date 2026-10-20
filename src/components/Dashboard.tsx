@@ -25,6 +25,7 @@ import { TelegramSettingsModal } from './TelegramSettingsModal';
 import { TelegramService, type TelegramConfig } from '../services/telegramService';
 import { StrategyRegistry, type StrategySignalResult } from '../engine/strategyRegistry';
 import { PivotCalculator } from '../engine/pivotCalculator';
+import { WorkerStatusBanner } from './WorkerStatusBanner';
 
 export const Dashboard: React.FC = () => {
   const [selectedInstrument, setSelectedInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
@@ -229,6 +230,9 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* 24/7 Background Autonomous Worker Status */}
+      <WorkerStatusBanner />
+
       {/* Top Controls & Status Bar */}
       <div className="bg-cardBg border border-borderCol rounded-xl p-3 sm:p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         {/* Instrument Switcher */}

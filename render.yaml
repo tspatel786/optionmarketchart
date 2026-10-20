@@ -2,7 +2,33 @@
 # Documentation: https://render.com/docs/blueprint-spec
 
 services:
-  # 1. Static Web Dashboard (React + TypeScript + Vite + Lightweight Charts)
+  # 1. Autonomous 24/7 Background Worker & API Service (Node.js + TSX)
+  # Runs independently when browser, laptop, or mobile is closed!
+  - type: web
+    name: optionmarketchart-worker
+    runtime: node
+    plan: starter
+    repo: https://github.com/tspatel786/optionmarketchart
+    branch: main
+    autoDeploy: true
+    buildCommand: npm install && npm run build
+    startCommand: npm run server
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GROWW_API_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+
+  # 2. Static Web Dashboard (React + TypeScript + Vite + Lightweight Charts)
   - type: web
     name: optionmarketchart-web
     runtime: static
