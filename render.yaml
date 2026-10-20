@@ -7,7 +7,7 @@ services:
   - type: web
     name: optionmarketchart-worker
     runtime: node
-    plan: starter
+    plan: free
     repo: https://github.com/tspatel786/optionmarketchart
     branch: main
     autoDeploy: true
