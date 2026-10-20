@@ -75,6 +75,7 @@ export class BacktestEngine {
         prevDayClose: prevClose,
         activeConditions: [],
         forceMarketHoursCheck: false,
+        minConfluenceRequired: 80,
       });
 
       if ((signal.signalType === 'BUY' || signal.signalType === 'SELL') && signal.levels) {

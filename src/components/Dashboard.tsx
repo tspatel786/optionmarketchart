@@ -198,46 +198,50 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Controls & Status Bar */}
-      <div className="bg-cardBg border border-borderCol rounded-xl p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-cardBg border border-borderCol rounded-xl p-3 sm:p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         {/* Instrument Switcher */}
-        <div className="flex items-center gap-2">
-          {(['NIFTY 50', 'BANK NIFTY'] as const).map(inst => (
-            <button
-              key={inst}
-              onClick={() => setSelectedInstrument(inst)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold tracking-wide transition ${
-                selectedInstrument === inst
-                  ? 'bg-neutralBlue text-white shadow-md'
-                  : 'bg-darkBg text-gray-400 hover:text-white border border-borderCol'
-              }`}
-            >
-              {inst}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
+          <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+            {(['NIFTY 50', 'BANK NIFTY'] as const).map(inst => (
+              <button
+                key={inst}
+                onClick={() => setSelectedInstrument(inst)}
+                className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide transition text-center ${
+                  selectedInstrument === inst
+                    ? 'bg-neutralBlue text-white shadow-md'
+                    : 'bg-darkBg text-gray-400 hover:text-white border border-borderCol'
+                }`}
+              >
+                {inst}
+              </button>
+            ))}
+          </div>
 
-          <span className="text-xs px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded font-mono font-bold">
-            5M Interval
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] sm:text-xs px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded font-mono font-bold">
+              5M Interval
+            </span>
 
-          {isGrowwConnected ? (
-            <span className="text-[11px] px-2.5 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              LIVE DATA (GROWW API)
-            </span>
-          ) : (
-            <span className="text-[11px] px-2.5 py-1 bg-amber-950 text-amber-300 border border-amber-800 rounded font-bold flex items-center gap-1.5" title="Broker token pending. Showing simulation data.">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              SIMULATION / MOCK DATA
-            </span>
-          )}
+            {isGrowwConnected ? (
+              <span className="text-[10px] sm:text-[11px] px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                LIVE (GROWW API)
+              </span>
+            ) : (
+              <span className="text-[10px] sm:text-[11px] px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-800 rounded font-bold flex items-center gap-1.5" title="Broker token pending. Showing simulation data.">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                SIMULATION / MOCK
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Live Broker, Telegram & Database Status */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between sm:justify-start pt-2 md:pt-0 border-t border-borderCol/40 md:border-0">
           {/* Telegram Status */}
           <button
             onClick={() => setIsTelegramModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-darkBg hover:bg-gray-800 border border-borderCol rounded-lg text-xs transition"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-darkBg hover:bg-gray-800 border border-borderCol rounded-lg text-[11px] transition"
           >
             <span className={`w-2 h-2 rounded-full ${telegramConfig.botToken ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             <span className="text-gray-300">

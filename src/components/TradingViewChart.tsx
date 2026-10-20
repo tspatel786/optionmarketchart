@@ -40,7 +40,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
         horzLine: { color: '#4b5563', style: 2 },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 420,
+      height: window.innerWidth < 640 ? 320 : 420,
     });
 
     const candlestickSeries = chart.addCandlestickSeries({
@@ -58,6 +58,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
+          height: window.innerWidth < 640 ? 320 : 420,
         });
       }
     };

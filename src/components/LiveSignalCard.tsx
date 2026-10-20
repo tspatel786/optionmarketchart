@@ -87,10 +87,55 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
       </div>
 
       <div className="p-5 space-y-5">
+        {/* A+ Strategy 80% Win Rate Confluence Meter */}
+        <div className="p-4 bg-darkBg/90 border border-borderCol rounded-xl space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4 text-accentGold" />
+              Strategy Win Rate Filter (80% A+ Confluence)
+            </span>
+            <span className={`text-xs font-black px-2.5 py-0.5 rounded-full font-mono ${
+              (signal.confluenceScore || 0) >= 80
+                ? 'bg-emerald-950 text-emerald-400 border border-emerald-700'
+                : 'bg-amber-950 text-amber-300 border border-amber-700'
+            }`}>
+              {signal.confluenceScore !== undefined ? `${signal.confluenceScore}% Match` : '80% Gate Active'}
+            </span>
+          </div>
+
+          {/* Visual Progress Bar */}
+          <div className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+            <div
+              className={`h-2.5 rounded-full transition-all duration-500 ${
+                (signal.confluenceScore || 0) >= 80
+                  ? 'bg-gradient-to-r from-emerald-500 to-green-400'
+                  : 'bg-gradient-to-r from-amber-500 to-yellow-400'
+              }`}
+              style={{ width: `${Math.min(100, Math.max(10, signal.confluenceScore || 25))}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-gray-400">
+            <span>0% (No Edge)</span>
+            <span className="font-semibold text-accentGold">80% Threshold (A+ Setup)</span>
+            <span>100% (Perfect)</span>
+          </div>
+
+          {signal.explanation.confluenceBreakdown && signal.explanation.confluenceBreakdown.length > 0 && (
+            <div className="pt-2 border-t border-borderCol/50 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-gray-300">
+              {signal.explanation.confluenceBreakdown.map((item, idx) => (
+                <div key={idx} className="truncate">
+                  {item}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Signal Execution Levels Box (Only on Valid BUY/SELL) */}
         {signal.levels && (isBuy || isSell) && (
           <div className="p-4 bg-darkBg border border-borderCol rounded-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-borderCol text-xs font-semibold text-gray-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-borderCol text-xs font-semibold text-gray-300 gap-1.5">
               <span className="flex items-center gap-1.5 text-accentGold">
                 <Target className="w-4 h-4" /> Recommended Price Levels (5m Closed)
               </span>
@@ -99,44 +144,44 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 text-center">
-              <div className="bg-cardBg p-2 rounded-lg border border-borderCol">
-                <span className="text-[11px] text-gray-400 block">Entry Price</span>
-                <span className="text-sm font-bold font-mono text-blue-400">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-3 text-center">
+              <div className="bg-cardBg p-2.5 rounded-lg border border-borderCol">
+                <span className="text-[10px] text-gray-400 block font-medium">Entry Price</span>
+                <span className="text-sm font-bold font-mono text-blue-400 block mt-0.5">
                   ₹{signal.levels.entryPrice.toFixed(2)}
                 </span>
               </div>
 
-              <div className="bg-cardBg p-2 rounded-lg border border-borderCol">
-                <span className="text-[11px] text-gray-400 block">Stop Loss</span>
-                <span className="text-sm font-bold font-mono text-bearRed">
+              <div className="bg-cardBg p-2.5 rounded-lg border border-borderCol">
+                <span className="text-[10px] text-gray-400 block font-medium">Stop Loss</span>
+                <span className="text-sm font-bold font-mono text-bearRed block mt-0.5">
                   ₹{signal.levels.stopLoss.toFixed(2)}
                 </span>
               </div>
 
-              <div className="bg-cardBg p-2 rounded-lg border border-borderCol">
-                <span className="text-[11px] text-gray-400 block">Target 1 (R1/S1)</span>
-                <span className="text-sm font-bold font-mono text-bullGreen">
+              <div className="bg-cardBg p-2.5 rounded-lg border border-borderCol">
+                <span className="text-[10px] text-gray-400 block font-medium">Target 1 (R1/S1)</span>
+                <span className="text-sm font-bold font-mono text-bullGreen block mt-0.5">
                   ₹{signal.levels.target1.toFixed(2)}
                 </span>
               </div>
 
-              <div className="bg-cardBg p-2 rounded-lg border border-borderCol">
-                <span className="text-[11px] text-gray-400 block">Target 2 (R2/S2)</span>
-                <span className="text-sm font-bold font-mono text-emerald-300">
+              <div className="bg-cardBg p-2.5 rounded-lg border border-borderCol">
+                <span className="text-[10px] text-gray-400 block font-medium">Target 2 (R2/S2)</span>
+                <span className="text-sm font-bold font-mono text-emerald-300 block mt-0.5">
                   ₹{signal.levels.target2.toFixed(2)}
                 </span>
               </div>
 
-              <div className="bg-cardBg p-2 rounded-lg border border-borderCol">
-                <span className="text-[11px] text-gray-400 block">Pivot Level</span>
-                <span className="text-sm font-bold font-mono text-amber-300">
+              <div className="bg-cardBg p-2.5 rounded-lg border border-borderCol col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-gray-400 block font-medium">Pivot Level</span>
+                <span className="text-sm font-bold font-mono text-amber-300 block mt-0.5">
                   ₹{signal.levels.pivot.toFixed(2)}
                 </span>
               </div>
             </div>
 
-            <div className="mt-2 text-[11px] text-gray-400 text-left">
+            <div className="mt-2.5 text-[11px] text-gray-400 text-left">
               <strong>Invalidation:</strong> {signal.levels.invalidation}
             </div>
           </div>

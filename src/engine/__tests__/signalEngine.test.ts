@@ -83,6 +83,7 @@ describe('SignalEngine & Rules Evaluation (5m Closed Candles)', () => {
       ...baseContext,
       candles: hammerCandles,
       vix: 14.8,
+      minConfluenceRequired: 70,
     });
 
     expect(result.signalType).toBe('BUY');
@@ -111,6 +112,7 @@ describe('SignalEngine & Rules Evaluation (5m Closed Candles)', () => {
       ...baseContext,
       candles: shootingStarCandles,
       vix: 13.2,
+      minConfluenceRequired: 70,
     });
 
     expect(result.signalType).toBe('SELL');
@@ -122,6 +124,34 @@ describe('SignalEngine & Rules Evaluation (5m Closed Candles)', () => {
       expect(result.levels.stopLoss).toBeGreaterThanOrEqual(23150); // At or above candle high
       expect(result.levels.target1).toBeLessThan(result.levels.entryPrice);
     }
+  });
+
+  it('RULE: Strict 80% Win Rate Filter blocks marginal setups (< 80% confluence)', () => {
+    const candles: MarketCandle[] = [
+      { timestamp: 1000, datetime: '09:15', open: 23200, high: 23220, low: 23140, close: 23150, volume: 100, isClosed: true },
+      { timestamp: 1300, datetime: '09:20', open: 23150, high: 23160, low: 23090, close: 23100, volume: 120, isClosed: true },
+      { timestamp: 1600, datetime: '09:25', open: 23100, high: 23110, low: 23040, close: 23050, volume: 110, isClosed: true },
+      { timestamp: 1900, datetime: '09:30', open: 23050, high: 23060, low: 22980, close: 22990, volume: 130, isClosed: true },
+      { timestamp: 2200, datetime: '09:35', open: 22960, high: 22965, low: 22880, close: 22962, volume: 250, isClosed: true },
+    ];
+
+    // Evaluate with contradictory breadth and no S/R level nearby (marginal low-quality setup)
+    const result = SignalEngine.evaluate('NIFTY 50', {
+      ...baseContext,
+      candles,
+      vix: 14.8,
+      advances: 400, // Negative breadth
+      declines: 1600,
+      prevDayHigh: 25000, // Far away from price 22962
+      prevDayLow: 24000,
+      prevDayClose: 24500,
+      minConfluenceRequired: 80,
+    });
+
+    // Score is below 80%, so engine must return WAIT to protect capital
+    expect(result.signalType).toBe('WAIT');
+    expect(result.isHighProbability).toBe(false);
+    expect(result.explanation.decision).toContain('WAIT: Setup quality is');
   });
 
   it('RULE: Deduplication key is deterministic and identical for same candle', () => {
