@@ -19,11 +19,21 @@ import { growwService, type MarketCandle, type LiveQuote } from '../services/gro
 import { SignalEngine, type EvaluatedSignal } from '../engine/signalEngine';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
+import { TelegramSettingsModal } from './TelegramSettingsModal';
+import { TelegramService, type TelegramConfig } from '../services/telegramService';
+
 export const Dashboard: React.FC = () => {
   const [selectedInstrument, setSelectedInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
   const [growwToken, setGrowwToken] = useState<string>('');
   const [isTokenModalOpen, setIsTokenModalOpen] = useState<boolean>(false);
   const [isGrowwConnected, setIsGrowwConnected] = useState<boolean>(growwService.isConfigured());
+
+  // Telegram Configuration State
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState<boolean>(false);
+  const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(() => {
+    const saved = localStorage.getItem('TELEGRAM_CONFIG');
+    return saved ? JSON.parse(saved) : { botToken: '', chatId: '' };
+  });
 
   // Market Data state
   const [candles, setCandles] = useState<MarketCandle[]>([]);
@@ -35,6 +45,11 @@ export const Dashboard: React.FC = () => {
   const [signalHistory, setSignalHistory] = useState<EvaluatedSignal[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const handleSaveTelegramConfig = (cfg: TelegramConfig) => {
+    setTelegramConfig(cfg);
+    localStorage.setItem('TELEGRAM_CONFIG', JSON.stringify(cfg));
+  };
 
   // Save Groww token
   const handleSaveToken = () => {
@@ -83,6 +98,8 @@ export const Dashboard: React.FC = () => {
         setCurrentSignal(evalResult);
         if (evalResult.signalType === 'BUY' || evalResult.signalType === 'SELL') {
           setSignalHistory(prev => [evalResult, ...prev]);
+          // Deliver to Telegram Outbox queue
+          TelegramService.queueNotification(evalResult, telegramConfig);
         }
       } else {
         // If Groww token not configured yet, generate initial baseline candles
@@ -183,20 +200,30 @@ export const Dashboard: React.FC = () => {
           </span>
         </div>
 
-        {/* Live Broker & Database Status */}
-        <div className="flex items-center gap-3">
+        {/* Live Broker, Telegram & Database Status */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Telegram Status */}
+          <button
+            onClick={() => setIsTelegramModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-darkBg hover:bg-gray-800 border border-borderCol rounded-lg text-xs transition"
+          >
+            <span className={`w-2 h-2 rounded-full ${telegramConfig.botToken ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className="text-gray-300">
+              Telegram: <strong className={telegramConfig.botToken ? 'text-emerald-400' : 'text-amber-300'}>{telegramConfig.botToken ? 'Active' : 'Configure'}</strong>
+            </span>
+          </button>
+
           {/* Groww API Status */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-darkBg border border-borderCol rounded-lg text-xs">
             <span className={`w-2 h-2 rounded-full ${isGrowwConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
             <span className="text-gray-300">
-              Groww API: <strong>{isGrowwConnected ? 'Active (Live)' : 'Token Needed'}</strong>
+              Groww API: <strong>{isGrowwConnected ? 'Live' : 'Token Needed'}</strong>
             </span>
             <button
               onClick={() => setIsTokenModalOpen(true)}
-              className="ml-2 text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold underline"
+              className="ml-1 text-blue-400 hover:text-blue-300 font-semibold underline"
             >
-              <Key className="w-3.5 h-3.5" />
-              {isGrowwConnected ? 'Update Token' : 'Enter Token'}
+              {isGrowwConnected ? 'Update' : 'Enter'}
             </button>
           </div>
 
@@ -294,6 +321,14 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Telegram Configuration Modal */}
+      <TelegramSettingsModal
+        isOpen={isTelegramModalOpen}
+        onClose={() => setIsTelegramModalOpen(false)}
+        config={telegramConfig}
+        onSaveConfig={handleSaveTelegramConfig}
+      />
     </div>
   );
 };
