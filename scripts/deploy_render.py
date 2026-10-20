@@ -93,8 +93,10 @@ def deploy_or_create_service(service_name, service_type, headers, owner_id):
             "serviceDetails": {
                 "env": "node",
                 "plan": "starter",
-                "buildCommand": "npm install && npm run build",
-                "startCommand": "npm run server",
+                "envSpecificDetails": {
+                    "buildCommand": "npm install && npm run build",
+                    "startCommand": "npm run server"
+                },
                 "healthCheckPath": "/healthz",
                 "pullRequestPreviewsEnabled": "no",
                 "envVars": [
