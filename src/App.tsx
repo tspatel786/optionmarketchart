@@ -11,9 +11,10 @@ import {
   BarChart3
 } from 'lucide-react';
 import { RuleManagement } from './components/RuleManagement';
+import { Dashboard } from './components/Dashboard';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'rules' | 'dashboard' | 'logs'>('rules');
+  const [activeTab, setActiveTab] = useState<'rules' | 'dashboard'>('dashboard');
 
   return (
     <div className="min-h-screen bg-darkBg text-gray-100 flex flex-col font-sans">
@@ -45,20 +46,8 @@ export const App: React.FC = () => {
           {/* Navigation Tabs */}
           <nav className="flex items-center gap-2">
             <button
-              onClick={() => setActiveTab('rules')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === 'rules'
-                  ? 'bg-neutralBlue text-white shadow-md'
-                  : 'text-gray-400 hover:text-white hover:bg-darkBg'
-              }`}
-            >
-              <Sliders className="w-4 h-4" />
-              Rule Management
-            </button>
-
-            <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                 activeTab === 'dashboard'
                   ? 'bg-neutralBlue text-white shadow-md'
                   : 'text-gray-400 hover:text-white hover:bg-darkBg'
@@ -66,6 +55,18 @@ export const App: React.FC = () => {
             >
               <BarChart3 className="w-4 h-4" />
               Live Signals & Charts
+            </button>
+
+            <button
+              onClick={() => setActiveTab('rules')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'rules'
+                  ? 'bg-neutralBlue text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-darkBg'
+              }`}
+            >
+              <Sliders className="w-4 h-4" />
+              Rule Management
             </button>
           </nav>
         </div>
@@ -91,17 +92,8 @@ export const App: React.FC = () => {
           </div>
         </div>
 
+        {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'rules' && <RuleManagement />}
-
-        {activeTab === 'dashboard' && (
-          <div className="bg-cardBg border border-borderCol rounded-xl p-8 text-center">
-            <BarChart3 className="w-12 h-12 text-neutralBlue mx-auto mb-3 opacity-80" />
-            <h3 className="text-lg font-bold text-white mb-1">Live Signals & Charts</h3>
-            <p className="text-sm text-gray-400 max-w-md mx-auto">
-              Angel One SmartAPI streaming integration and TradingView Lightweight charts will be enabled in Phase 4 & Phase 6.
-            </p>
-          </div>
-        )}
       </main>
 
       {/* Footer */}
