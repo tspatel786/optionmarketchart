@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.resolve(__dirname, '../dist');
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Simple MIME map for static file serving
 const MIME_TYPES: Record<string, string> = {
@@ -109,7 +109,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Start HTTP server & background worker
-server.listen(PORT, async () => {
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`[Server] Web Dashboard & Autonomous API listening on port ${PORT}`);
   console.log(`[Server] Health Check available at http://localhost:${PORT}/healthz`);
   console.log(`[Server] Live Status API available at http://localhost:${PORT}/api/status`);

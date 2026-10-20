@@ -11,7 +11,7 @@ services:
     repo: https://github.com/tspatel786/optionmarketchart
     branch: main
     autoDeploy: true
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run server
     healthCheckPath: /healthz
     envVars:

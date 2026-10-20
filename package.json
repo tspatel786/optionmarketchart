@@ -15,10 +15,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^18.0.8",
     "lightweight-charts": "^4.2.3",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",
@@ -26,10 +28,8 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.21",
-    "dotenv": "^18.0.8",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4.23.15",
     "typescript": "~5.7.3",
     "vite": "^6.2.0",
     "vitest": "^3.0.7"
