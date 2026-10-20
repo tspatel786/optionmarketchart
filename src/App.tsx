@@ -12,9 +12,11 @@ import {
 } from 'lucide-react';
 import { RuleManagement } from './components/RuleManagement';
 import { Dashboard } from './components/Dashboard';
+import { BacktestView } from './components/BacktestView';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'rules' | 'dashboard'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'rules' | 'backtest'>('dashboard');
+  const [backtestInstrument, setBacktestInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
 
   return (
     <div className="min-h-screen bg-darkBg text-gray-100 flex flex-col font-sans">
@@ -68,6 +70,18 @@ export const App: React.FC = () => {
               <Sliders className="w-4 h-4" />
               Rule Management
             </button>
+
+            <button
+              onClick={() => setActiveTab('backtest')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'backtest'
+                  ? 'bg-neutralBlue text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-darkBg'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Backtesting Engine
+            </button>
           </nav>
         </div>
       </header>
@@ -94,6 +108,27 @@ export const App: React.FC = () => {
 
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'rules' && <RuleManagement />}
+        {activeTab === 'backtest' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 font-semibold">Instrument:</span>
+              {(['NIFTY 50', 'BANK NIFTY'] as const).map(inst => (
+                <button
+                  key={inst}
+                  onClick={() => setBacktestInstrument(inst)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    backtestInstrument === inst
+                      ? 'bg-neutralBlue text-white'
+                      : 'bg-cardBg border border-borderCol text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {inst}
+                </button>
+              ))}
+            </div>
+            <BacktestView candles={[]} instrument={backtestInstrument} />
+          </div>
+        )}
       </main>
 
       {/* Footer */}
