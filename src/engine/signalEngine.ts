@@ -36,11 +36,53 @@ export interface EngineContext {
   activeConditions: TradingCondition[];
   riskPauseActive?: boolean; // 1-2 day cool-off pause toggle
   forceMarketHoursCheck?: boolean;
+  cooldownMinutes?: number; // Configurable gap between same-direction signals (e.g. 15 mins)
+  dailySignalCap?: number;  // Configurable maximum signals per instrument per day (e.g. 3)
+  todaySignalsCount?: number;
+  lastSignal?: {
+    direction: SignalType;
+    timestamp: number; // Unix seconds
+  };
 }
 
 export class SignalEngine {
   /**
+   * Official NSE Trading Holidays (Format: YYYY-MM-DD in IST)
+   */
+  public static readonly NSE_HOLIDAYS: string[] = [
+    '2026-01-26', // Republic Day
+    '2026-02-17', // Mahashivratri
+    '2026-03-03', // Holi
+    '2026-03-20', // Id-ul-Fitr (Ramzan Id)
+    '2026-03-31', // Mahavir Jayanti
+    '2026-04-03', // Good Friday
+    '2026-04-14', // Dr. B.R. Ambedkar Jayanti
+    '2026-05-01', // Maharashtra Day
+    '2026-05-27', // Bakri Id
+    '2026-06-26', // Muharram
+    '2026-08-15', // Independence Day
+    '2026-10-02', // Mahatma Gandhi Jayanti
+    '2026-10-20', // Dussehra
+    '2026-11-08', // Diwali Laxmi Pujan
+    '2026-11-10', // Diwali Balipratipada
+    '2026-11-24', // Guru Nanak Jayanti
+    '2026-12-25', // Christmas
+  ];
+
+  /**
+   * Helper: Check if given date is an official NSE Trading Holiday
+   */
+  public static isNSEHoliday(istDate: Date): boolean {
+    const yyyy = istDate.getFullYear();
+    const mm = String(istDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(istDate.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    return this.NSE_HOLIDAYS.includes(dateStr);
+  }
+
+  /**
    * Helper: Check if current time is within Indian Market Hours (09:15 to 15:30 IST)
+   * and excludes weekends + official NSE holidays
    */
   public static isMarketHours(): boolean {
     const now = new Date();
@@ -51,6 +93,9 @@ export class SignalEngine {
 
     // Monday to Friday only
     if (day === 0 || day === 6) return false;
+
+    // Check NSE Holiday
+    if (this.isNSEHoliday(istDate)) return false;
 
     const hours = istDate.getHours();
     const minutes = istDate.getMinutes();
@@ -232,6 +277,59 @@ export class SignalEngine {
       reasons.push('Note: Market breadth is currently net-negative (Declines > Advances).');
     } else if (breadthBias === 'BULLISH' && direction === 'SELL') {
       reasons.push('Note: Market breadth is currently net-positive (Advances > Declines).');
+    }
+
+    // RULE 7: Configurable Daily Signal Cap (Prevent overtrading)
+    const maxSignalsPerDay = context.dailySignalCap ?? 3;
+    if (context.todaySignalsCount !== undefined && context.todaySignalsCount >= maxSignalsPerDay) {
+      failedConditions.push(`DAILY_CAP_REACHED: ${context.todaySignalsCount}/${maxSignalsPerDay}`);
+      return {
+        instrument,
+        signalType: 'WAIT',
+        candleTimestamp,
+        candleDateTimeIST,
+        ruleVersion: 1,
+        deduplicationKey,
+        matchedConditions,
+        failedConditions,
+        explanation: {
+          decision: `WAIT: Daily signal cap reached (${maxSignalsPerDay} max signals/day).`,
+          vixStatus,
+          vixValue: vix || undefined,
+          patterns: detectedPatterns,
+          reasons: [`Preventing overtrading. Daily cap of ${maxSignalsPerDay} trades reached for today.`],
+        },
+        status: 'ACTIVE',
+      };
+    }
+
+    // RULE 8: Configurable Cooldown Gap between same-direction signals
+    const cooldownSec = (context.cooldownMinutes ?? 15) * 60;
+    if (
+      context.lastSignal &&
+      context.lastSignal.direction === direction &&
+      candleTimestamp - context.lastSignal.timestamp < cooldownSec
+    ) {
+      const elapsedMin = Math.floor((candleTimestamp - context.lastSignal.timestamp) / 60);
+      failedConditions.push(`COOLDOWN_ACTIVE: ${elapsedMin}m / ${context.cooldownMinutes ?? 15}m`);
+      return {
+        instrument,
+        signalType: 'WAIT',
+        candleTimestamp,
+        candleDateTimeIST,
+        ruleVersion: 1,
+        deduplicationKey,
+        matchedConditions,
+        failedConditions,
+        explanation: {
+          decision: `WAIT: Cooldown active (${context.cooldownMinutes ?? 15}m gap required between same-direction signals).`,
+          vixStatus,
+          vixValue: vix || undefined,
+          patterns: detectedPatterns,
+          reasons: [`A consecutive ${direction} signal was generated ${elapsedMin} minutes ago. Waiting for cooldown period to elapse.`],
+        },
+        status: 'ACTIVE',
+      };
     }
 
     // Calculate Trade Levels using Pivot Framework

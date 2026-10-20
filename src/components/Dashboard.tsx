@@ -87,6 +87,12 @@ export const Dashboard: React.FC = () => {
         setCandles(fetchedCandles);
         setQuote(liveQuote);
 
+        // Calculate today's signals count and last signal for cooldown
+        const instrumentSignals = signalHistory.filter(
+          s => s.instrument === selectedInstrument && (s.signalType === 'BUY' || s.signalType === 'SELL')
+        );
+        const lastSignalRecord = instrumentSignals[0];
+
         // Evaluate Signal
         const evalResult = SignalEngine.evaluate(selectedInstrument, {
           candles: fetchedCandles,
@@ -98,6 +104,15 @@ export const Dashboard: React.FC = () => {
           prevDayClose: liveQuote.close || 23000,
           activeConditions: [],
           forceMarketHoursCheck: false,
+          cooldownMinutes: 15,
+          dailySignalCap: 3,
+          todaySignalsCount: instrumentSignals.length,
+          lastSignal: lastSignalRecord
+            ? {
+                direction: lastSignalRecord.signalType,
+                timestamp: lastSignalRecord.candleTimestamp,
+              }
+            : undefined,
         });
 
         setCurrentSignal(evalResult);
@@ -203,6 +218,18 @@ export const Dashboard: React.FC = () => {
           <span className="text-xs px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded font-mono font-bold">
             5M Interval
           </span>
+
+          {isGrowwConnected ? (
+            <span className="text-[11px] px-2.5 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              LIVE DATA (GROWW API)
+            </span>
+          ) : (
+            <span className="text-[11px] px-2.5 py-1 bg-amber-950 text-amber-300 border border-amber-800 rounded font-bold flex items-center gap-1.5" title="Broker token pending. Showing simulation data.">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              SIMULATION / MOCK DATA
+            </span>
+          )}
         </div>
 
         {/* Live Broker, Telegram & Database Status */}

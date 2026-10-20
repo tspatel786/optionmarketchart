@@ -210,4 +210,37 @@ ${signal.explanation.decision}
       console.error('Error processing outbox item:', err);
     }
   }
+
+  /**
+   * Sends System Health & Alert Notifications (Worker Down, Stale Data, Broker Login Failed)
+   */
+  public static async sendSystemAlert(
+    alertType: 'STALE_DATA' | 'BROKER_LOGIN_FAILED' | 'WORKER_DOWN' | 'INFO',
+    details: string,
+    config: TelegramConfig
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!config.botToken || !config.chatId) {
+      return { success: false, error: 'Telegram credentials missing' };
+    }
+
+    const titleMap = {
+      STALE_DATA: '⚠️ SYSTEM ALERT: Stale Market Data Detected',
+      BROKER_LOGIN_FAILED: '🚨 SYSTEM ALERT: Broker API Session Expired / Failed',
+      WORKER_DOWN: '🔴 SYSTEM ALERT: Background Signal Worker Down',
+      INFO: 'ℹ️ SYSTEM NOTICE',
+    };
+
+    const text = `
+${titleMap[alertType] || '⚠️ SYSTEM ALERT'}
+
+<b>Time (IST):</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+<b>Details:</b>
+${details}
+
+────────────────────
+<i>Automated System Alert • Market Signal Engine</i>
+`.trim();
+
+    return this.sendDirectMessage(config.botToken, config.chatId, text);
+  }
 }
