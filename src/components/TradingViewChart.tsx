@@ -20,35 +20,35 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
     // Create chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#0b0f19' },
-        textColor: '#9ca3af',
+        background: { type: ColorType.Solid, color: '#070a12' },
+        textColor: '#94a3b8',
       },
       grid: {
-        vertLines: { color: '#1f2937' },
-        horzLines: { color: '#1f2937' },
+        vertLines: { color: '#141d30' },
+        horzLines: { color: '#141d30' },
       },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
-        borderColor: '#1f2937',
+        borderColor: '#1e293b',
       },
       rightPriceScale: {
-        borderColor: '#1f2937',
+        borderColor: '#1e293b',
       },
       crosshair: {
-        vertLine: { color: '#4b5563', style: 2 },
-        horzLine: { color: '#4b5563', style: 2 },
+        vertLine: { color: '#475569', style: 2 },
+        horzLine: { color: '#475569', style: 2 },
       },
       width: chartContainerRef.current.clientWidth,
-      height: window.innerWidth < 640 ? 320 : 420,
+      height: window.innerWidth < 640 ? 320 : 440,
     });
 
     const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#10b981',
-      downColor: '#ef4444',
+      downColor: '#f43f5e',
       borderVisible: false,
       wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
+      wickDownColor: '#f43f5e',
     });
 
     chartRef.current = chart;
@@ -58,7 +58,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
-          height: window.innerWidth < 640 ? 320 : 420,
+          height: window.innerWidth < 640 ? 320 : 440,
         });
       }
     };
@@ -95,7 +95,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
       // Entry Line
       seriesRef.current.createPriceLine({
         price: levels.entryPrice,
-        color: '#3b82f6',
+        color: '#38bdf8',
         lineWidth: 2,
         lineStyle: 0,
         axisLabelVisible: true,
@@ -105,7 +105,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
       // Stop Loss Line
       seriesRef.current.createPriceLine({
         price: levels.stopLoss,
-        color: '#ef4444',
+        color: '#f43f5e',
         lineWidth: 2,
         lineStyle: 1,
         axisLabelVisible: true,
@@ -125,7 +125,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
       // Target 2 Line
       seriesRef.current.createPriceLine({
         price: levels.target2,
-        color: '#059669',
+        color: '#34d399',
         lineWidth: 2,
         lineStyle: 1,
         axisLabelVisible: true,
@@ -135,7 +135,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
       // Pivot Line
       seriesRef.current.createPriceLine({
         price: levels.pivot,
-        color: '#f59e0b',
+        color: '#fbbf24',
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
@@ -145,22 +145,21 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ candles, lev
   }, [candles, levels]);
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden border border-borderCol bg-darkBg">
-      <div className="p-3 bg-cardBg border-b border-borderCol flex items-center justify-between">
+    <div className="relative w-full rounded-2xl overflow-hidden border border-gray-800/80 bg-[#070a12] shadow-2xl shadow-black/80">
+      <div className="p-3 sm:p-4 bg-gradient-to-r from-gray-900/90 via-[#0d1424] to-gray-900/90 border-b border-gray-800 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-white text-sm">{instrument}</span>
-          <span className="text-xs px-2 py-0.5 bg-blue-950 text-blue-300 border border-blue-800 rounded font-mono">
-            5M Closed Candles
+          <span className="font-black text-white text-sm sm:text-base tracking-wide">{instrument}</span>
+          <span className="text-[10px] sm:text-xs px-2 py-0.5 bg-blue-950/80 text-cyan-300 border border-cyan-800 rounded font-mono font-bold">
+            5M Closed
           </span>
         </div>
 
         {levels && (
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-blue-400 font-mono">Entry: {levels.entryPrice.toFixed(2)}</span>
-            <span className="text-red-400 font-mono">SL: {levels.stopLoss.toFixed(2)}</span>
-            <span className="text-emerald-400 font-mono">T1: {levels.target1.toFixed(2)}</span>
-            <span className="text-emerald-500 font-mono">T2: {levels.target2.toFixed(2)}</span>
-            <span className="text-amber-400 font-mono">P: {levels.pivot.toFixed(2)}</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] font-mono">
+            <span className="text-cyan-300">Entry: ₹{levels.entryPrice.toFixed(1)}</span>
+            <span className="text-rose-400">SL: ₹{levels.stopLoss.toFixed(1)}</span>
+            <span className="text-emerald-400">T1: ₹{levels.target1.toFixed(1)}</span>
+            <span className="text-green-300 hidden sm:inline">T2: ₹{levels.target2.toFixed(1)}</span>
           </div>
         )}
       </div>

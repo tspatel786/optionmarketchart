@@ -66,15 +66,15 @@ export const WorkerStatusBanner: React.FC = () => {
   const getStatusColor = (status?: string) => {
     switch (status) {
       case 'RUNNING':
-        return 'bg-emerald-950/80 border-emerald-800 text-emerald-400';
+        return 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300';
       case 'IDLE_OUTSIDE_HOURS':
-        return 'bg-blue-950/80 border-blue-800 text-blue-400';
+        return 'bg-blue-950/40 border-cyan-800/60 text-cyan-300';
       case 'BROKER_AUTH_EXPIRED':
-        return 'bg-red-950/80 border-red-800 text-red-400 animate-pulse';
+        return 'bg-rose-950/40 border-rose-800/60 text-rose-300 animate-pulse';
       case 'STALE_FEED':
-        return 'bg-amber-950/80 border-amber-800 text-amber-400';
+        return 'bg-amber-950/40 border-amber-800/60 text-amber-300';
       default:
-        return 'bg-cardBg border-borderCol text-gray-300';
+        return 'bg-[#0d1424]/90 border-gray-800/80 text-gray-300';
     }
   };
 
@@ -85,34 +85,34 @@ export const WorkerStatusBanner: React.FC = () => {
       case 'IDLE_OUTSIDE_HOURS':
         return 'STANDBY: OUTSIDE NSE TRADING HOURS (09:15-15:30 IST)';
       case 'BROKER_AUTH_EXPIRED':
-        return 'ALERT: GROWW API TOKEN EXPIRED — SAFE NO_DATA MODE';
+        return 'ALERT: BROKER TOKEN EXPIRED — SAFE NO_DATA MODE';
       case 'STALE_FEED':
         return 'CAUTION: MARKET DATA FEED STALE';
       default:
-        return 'BACKGROUND ENGINE: MONITORING';
+        return 'BACKGROUND ENGINE: 24/7 MONITORING';
     }
   };
 
   const getRegimeBadge = (regime?: string) => {
     switch (regime) {
       case 'TRENDING_BULL':
-        return <span className="px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 font-bold border border-emerald-700 text-[10px]">BULLISH TREND ↗</span>;
+        return <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-bold border border-emerald-800 text-[10px]">BULLISH TREND ↗</span>;
       case 'TRENDING_BEAR':
-        return <span className="px-2 py-0.5 rounded bg-rose-900/60 text-rose-300 font-bold border border-rose-700 text-[10px]">BEARISH TREND ↘</span>;
+        return <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-400 font-bold border border-rose-800 text-[10px]">BEARISH TREND ↘</span>;
       case 'VOLATILE_CHOP':
-        return <span className="px-2 py-0.5 rounded bg-purple-900/60 text-purple-300 font-bold border border-purple-700 text-[10px]">VOLATILE CHOP ⚡</span>;
+        return <span className="px-2 py-0.5 rounded bg-purple-950 text-purple-300 font-bold border border-purple-800 text-[10px]">VOLATILE CHOP ⚡</span>;
       default:
-        return <span className="px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 font-bold border border-amber-700 text-[10px]">SIDEWAYS RANGE ↔</span>;
+        return <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-bold border border-amber-800 text-[10px]">SIDEWAYS RANGE ↔</span>;
     }
   };
 
   return (
-    <div className={`p-3 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs transition ${getStatusColor(heartbeat?.status)}`}>
+    <div className={`p-3 sm:p-3.5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-lg transition ${getStatusColor(heartbeat?.status)}`}>
       <div className="flex items-center gap-2.5">
         <div className="relative flex items-center justify-center">
-          <Activity className="w-4 h-4 text-emerald-400" />
+          <Activity className="w-4 h-4 text-cyan-400" />
           {heartbeat?.status === 'RUNNING' && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           )}
         </div>
         <div>
@@ -123,29 +123,29 @@ export const WorkerStatusBanner: React.FC = () => {
             {getRegimeBadge(heartbeat?.current_regime)}
           </div>
           <p className="text-[10px] text-gray-400 mt-0.5">
-            Evaluates 5M closed candles unattended • Persists canonical signals to Supabase • Dispatches deduplicated Telegram alerts
+            5M closed candles • Multi-timeframe pattern detection • Deduplicated Telegram alerts
           </p>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px] text-gray-300 border-t md:border-t-0 border-borderCol/50 pt-2 md:pt-0">
+      <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px] text-gray-300 border-t md:border-t-0 border-gray-800/80 pt-2 md:pt-0">
         <div className="flex items-center gap-1.5" title="Last background evaluation cycle">
           <Clock className="w-3.5 h-3.5 text-gray-400" />
-          <span>Last 5M Candle: <strong>{heartbeat?.last_candle_ist || 'Live Market'}</strong></span>
+          <span>Last 5M Candle: <strong className="text-white">{heartbeat?.last_candle_ist || 'Live Feed'}</strong></span>
         </div>
 
         <div className="flex items-center gap-1.5" title="Broker API Health">
           <Cpu className="w-3.5 h-3.5 text-gray-400" />
-          <span>Broker: <strong>{heartbeat?.broker_status || 'OK'}</strong></span>
+          <span>Broker: <strong className="text-emerald-400">{heartbeat?.broker_status || 'Angel One (T134200)'}</strong></span>
         </div>
 
         <button
           onClick={fetchWorkerStatus}
           disabled={loading}
-          className="p-1 hover:bg-white/10 rounded transition"
+          className="p-1 hover:bg-white/10 rounded-lg transition active:scale-95"
           title="Refresh Heartbeat"
         >
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
         </button>
       </div>
     </div>
