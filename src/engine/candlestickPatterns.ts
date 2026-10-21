@@ -263,19 +263,311 @@ export class CandlestickPatternEvaluator {
   }
 
   /**
-   * Evaluate all 8 patterns on the given 5m closed candles
+   * 9. Morning Star (Bullish Reversal on 5m - 3 Candles)
+   */
+  public static checkMorningStar(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 4) return null;
+    const c0 = candles[candles.length - 1]; // Green candle
+    const c1 = candles[candles.length - 2]; // Small star
+    const c2 = candles[candles.length - 3]; // Large red candle
+
+    const c2Red = c2.close < c2.open;
+    const c2Body = c2.open - c2.close;
+    const c1SmallBody = Math.abs(c1.close - c1.open) <= c2Body * 0.35;
+    const c0Green = c0.close > c0.open;
+    const c0PiercesMid = c0.close >= c2.close + c2Body * 0.50; // Closes above 50% midpoint of c2
+    const isDowntrend = this.isPriorDowntrend(candles, 3);
+
+    if (c2Red && c1SmallBody && c0Green && c0PiercesMid && isDowntrend) {
+      return {
+        patternCode: 'PA-09',
+        patternName: 'Morning Star (5m Bullish Reversal)',
+        direction: 'BUY',
+        confidence: 0.90,
+        matchedCandleTimestamp: c0.timestamp,
+        explanation: '3-candle Morning Star: Strong red candle followed by star and decisive green candle reclaiming >50% of red body.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 10. Evening Star (Bearish Reversal on 5m - 3 Candles)
+   */
+  public static checkEveningStar(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 4) return null;
+    const c0 = candles[candles.length - 1]; // Red candle
+    const c1 = candles[candles.length - 2]; // Small star
+    const c2 = candles[candles.length - 3]; // Large green candle
+
+    const c2Green = c2.close > c2.open;
+    const c2Body = c2.close - c2.open;
+    const c1SmallBody = Math.abs(c1.close - c1.open) <= c2Body * 0.35;
+    const c0Red = c0.close < c0.open;
+    const c0PiercesMid = c0.close <= c2.open + c2Body * 0.50;
+    const isUptrend = this.isPriorUptrend(candles, 3);
+
+    if (c2Green && c1SmallBody && c0Red && c0PiercesMid && isUptrend) {
+      return {
+        patternCode: 'PA-10',
+        patternName: 'Evening Star (5m Bearish Reversal)',
+        direction: 'SELL',
+        confidence: 0.90,
+        matchedCandleTimestamp: c0.timestamp,
+        explanation: '3-candle Evening Star: Strong green candle followed by star and decisive red candle piercing >50% into green body.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 11. Hanging Man (Bearish Reversal at Swing High)
+   */
+  public static checkHangingMan(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 4) return null;
+    const c = candles[candles.length - 1];
+    const body = Math.abs(c.close - c.open);
+    const range = c.high - c.low;
+    if (range === 0 || body === 0) return null;
+
+    const lowerWick = Math.min(c.open, c.close) - c.low;
+    const upperWick = c.high - Math.max(c.open, c.close);
+
+    const isHangingManShape = lowerWick >= 2 * body && upperWick <= range * 0.15;
+    const isUptrend = this.isPriorUptrend(candles, 3);
+
+    if (isHangingManShape && isUptrend) {
+      return {
+        patternCode: 'PA-11',
+        patternName: 'Hanging Man (5m Bearish Reversal)',
+        direction: 'SELL',
+        confidence: 0.84,
+        matchedCandleTimestamp: c.timestamp,
+        explanation: 'Hanging Man at swing high: Long lower shadow warns of underlying selling exhaustion.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 12. Inverted Hammer (Bullish Reversal at Swing Low)
+   */
+  public static checkInvertedHammer(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 4) return null;
+    const c = candles[candles.length - 1];
+    const body = Math.abs(c.close - c.open);
+    const range = c.high - c.low;
+    if (range === 0 || body === 0) return null;
+
+    const upperWick = c.high - Math.max(c.open, c.close);
+    const lowerWick = Math.min(c.open, c.close) - c.low;
+
+    const isInvertedHammerShape = upperWick >= 2 * body && lowerWick <= range * 0.15;
+    const isDowntrend = this.isPriorDowntrend(candles, 3);
+
+    if (isInvertedHammerShape && isDowntrend) {
+      return {
+        patternCode: 'PA-12',
+        patternName: 'Inverted Hammer (5m Bullish Reversal)',
+        direction: 'BUY',
+        confidence: 0.84,
+        matchedCandleTimestamp: c.timestamp,
+        explanation: 'Inverted Hammer at swing low: Buyers pushed price sharply upward before close.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 13. Bullish Harami (Inside Bar Bullish Reversal)
+   */
+  public static checkBullishHarami(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 3) return null;
+    const curr = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+
+    const prevBearish = prev.close < prev.open;
+    const currBullish = curr.close > curr.open;
+    const isInside = curr.open >= prev.close && curr.close <= prev.open;
+    const isDowntrend = this.isPriorDowntrend(candles, 2);
+
+    if (prevBearish && currBullish && isInside && isDowntrend) {
+      return {
+        patternCode: 'PA-13',
+        patternName: 'Bullish Harami (5m Bullish Inside Bar)',
+        direction: 'BUY',
+        confidence: 0.85,
+        matchedCandleTimestamp: curr.timestamp,
+        explanation: 'Bullish Harami: Small green candle completely nested within prior large red candle.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 14. Bearish Harami (Inside Bar Bearish Reversal)
+   */
+  public static checkBearishHarami(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 3) return null;
+    const curr = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+
+    const prevBullish = prev.close > prev.open;
+    const currBearish = curr.close < curr.open;
+    const isInside = curr.open <= prev.close && curr.close >= prev.open;
+    const isUptrend = this.isPriorUptrend(candles, 2);
+
+    if (prevBullish && currBearish && isInside && isUptrend) {
+      return {
+        patternCode: 'PA-14',
+        patternName: 'Bearish Harami (5m Bearish Inside Bar)',
+        direction: 'SELL',
+        confidence: 0.85,
+        matchedCandleTimestamp: curr.timestamp,
+        explanation: 'Bearish Harami: Small red candle completely nested within prior large green candle.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 15. Piercing Line (Bullish Reversal piercing > 50% of prior red body)
+   */
+  public static checkPiercingLine(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 3) return null;
+    const curr = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+
+    const prevBearish = prev.close < prev.open;
+    const prevBody = prev.open - prev.close;
+    const currBullish = curr.close > curr.open;
+    const opensBelowPrevLow = curr.open <= prev.close;
+    const closesAboveMidpoint = curr.close >= prev.close + prevBody * 0.50 && curr.close < prev.open;
+    const isDowntrend = this.isPriorDowntrend(candles, 2);
+
+    if (prevBearish && currBullish && opensBelowPrevLow && closesAboveMidpoint && isDowntrend) {
+      return {
+        patternCode: 'PA-15',
+        patternName: 'Piercing Line (5m Bullish Reversal)',
+        direction: 'BUY',
+        confidence: 0.87,
+        matchedCandleTimestamp: curr.timestamp,
+        explanation: 'Piercing Line: Green candle opened lower and closed decisively above the 50% midpoint of prior red body.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 16. Dark Cloud Cover (Bearish Reversal piercing > 50% of prior green body)
+   */
+  public static checkDarkCloudCover(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 3) return null;
+    const curr = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+
+    const prevBullish = prev.close > prev.open;
+    const prevBody = prev.close - prev.open;
+    const currBearish = curr.close < curr.open;
+    const opensAbovePrevHigh = curr.open >= prev.close;
+    const closesBelowMidpoint = curr.close <= prev.close - prevBody * 0.50 && curr.close > prev.open;
+    const isUptrend = this.isPriorUptrend(candles, 2);
+
+    if (prevBullish && currBearish && opensAbovePrevHigh && closesBelowMidpoint && isUptrend) {
+      return {
+        patternCode: 'PA-16',
+        patternName: 'Dark Cloud Cover (5m Bearish Reversal)',
+        direction: 'SELL',
+        confidence: 0.87,
+        matchedCandleTimestamp: curr.timestamp,
+        explanation: 'Dark Cloud Cover: Red candle opened higher and closed decisively below the 50% midpoint of prior green body.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 17. Dragonfly Doji (Bullish Rejection with long lower wick and flat top)
+   */
+  public static checkDragonflyDoji(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 3) return null;
+    const c = candles[candles.length - 1];
+    const range = c.high - c.low;
+    const body = Math.abs(c.close - c.open);
+    if (range === 0) return null;
+
+    const lowerWick = Math.min(c.open, c.close) - c.low;
+    const upperWick = c.high - Math.max(c.open, c.close);
+
+    const isDragonfly = body <= range * 0.10 && lowerWick >= range * 0.75 && upperWick <= range * 0.08;
+    const isDowntrend = this.isPriorDowntrend(candles, 2);
+
+    if (isDragonfly && isDowntrend) {
+      return {
+        patternCode: 'PA-17',
+        patternName: 'Dragonfly Doji (5m Bullish Rejection)',
+        direction: 'BUY',
+        confidence: 0.86,
+        matchedCandleTimestamp: c.timestamp,
+        explanation: 'Dragonfly Doji: Massive lower shadow (>= 75% range) rejecting lower prices at key support.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 18. Gravestone Doji (Bearish Rejection with long upper wick and flat bottom)
+   */
+  public static checkGravestoneDoji(candles: MarketCandle[]): PatternMatchResult | null {
+    if (candles.length < 3) return null;
+    const c = candles[candles.length - 1];
+    const range = c.high - c.low;
+    const body = Math.abs(c.close - c.open);
+    if (range === 0) return null;
+
+    const upperWick = c.high - Math.max(c.open, c.close);
+    const lowerWick = Math.min(c.open, c.close) - c.low;
+
+    const isGravestone = body <= range * 0.10 && upperWick >= range * 0.75 && lowerWick <= range * 0.08;
+    const isUptrend = this.isPriorUptrend(candles, 2);
+
+    if (isGravestone && isUptrend) {
+      return {
+        patternCode: 'PA-18',
+        patternName: 'Gravestone Doji (5m Bearish Rejection)',
+        direction: 'SELL',
+        confidence: 0.86,
+        matchedCandleTimestamp: c.timestamp,
+        explanation: 'Gravestone Doji: Massive upper shadow (>= 75% range) rejecting higher prices at key resistance.',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Evaluate all 18 patterns on the given 5m closed candles
    */
   public static evaluateAll(candles: MarketCandle[]): PatternMatchResult[] {
     const results: PatternMatchResult[] = [];
     const checks = [
       this.checkHammer(candles),
       this.checkShootingStar(candles),
+      this.checkMorningStar(candles),
+      this.checkEveningStar(candles),
       this.checkThreeWhiteSoldiers(candles),
       this.checkThreeBlackCrows(candles),
       this.checkBullishMarubozu(candles),
       this.checkBearishMarubozu(candles),
       this.checkBullishEngulfing(candles),
       this.checkBearishEngulfing(candles),
+      this.checkHangingMan(candles),
+      this.checkInvertedHammer(candles),
+      this.checkBullishHarami(candles),
+      this.checkBearishHarami(candles),
+      this.checkPiercingLine(candles),
+      this.checkDarkCloudCover(candles),
+      this.checkDragonflyDoji(candles),
+      this.checkGravestoneDoji(candles),
     ];
 
     for (const match of checks) {
@@ -284,3 +576,4 @@ export class CandlestickPatternEvaluator {
     return results;
   }
 }
+

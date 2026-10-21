@@ -5,6 +5,8 @@ import { PivotCalculator, type PivotLevels, type TradeLevels } from './pivotCalc
 import type { TradingCondition } from '../types/rules';
 import { RegimeSelector, type MarketRegimeType, type RegimeAnalysis } from './regimeSelector';
 import { IndicatorCalculator } from './indicators';
+import { OptionGreeksEngine, type BSMOptionGreeks, type OptionTargetProjection } from './optionGreeks';
+import { BreakoutValidator, type BreakoutValidationResult } from './breakoutValidator';
 
 export type SignalType = 'BUY' | 'SELL' | 'BUY CE' | 'BUY PE' | 'WAIT' | 'NO TRADE' | 'NO_DATA';
 export type CanonicalSignalType = 'BUY CE' | 'BUY PE' | 'WAIT' | 'NO TRADE' | 'NO DATA';
@@ -26,12 +28,15 @@ export interface EvaluatedSignal {
   selectedStrategy?: string;
   strategyVersion?: string;
   chartPattern?: DetectedChartPattern;
+  breakoutValidation?: BreakoutValidationResult;
   optionContract?: {
     symbol: string;
     strike: number;
     optionType: 'CE' | 'PE';
     estimatedPremiumRange: string;
     positionSizing: string;
+    greeks?: BSMOptionGreeks;
+    projections?: OptionTargetProjection;
   };
   strategyPerformance?: {
     sampleSize: number;
@@ -136,18 +141,24 @@ export class SignalEngine {
   }
 
   /**
-   * Helper: Derive ATM Option Contract Details
+   * Helper: Derive ATM Option Contract Details with Analytical BSM Option Greeks & Target Projections
    */
   public static deriveOptionContract(
     instrument: 'NIFTY 50' | 'BANK NIFTY',
     action: 'BUY_CE' | 'BUY_PE',
-    underlyingPrice: number
+    underlyingPrice: number,
+    vix: number = 14.0,
+    target1Spot?: number,
+    target2Spot?: number,
+    stopLossSpot?: number
   ): {
     symbol: string;
     strike: number;
     optionType: 'CE' | 'PE';
     estimatedPremiumRange: string;
     positionSizing: string;
+    greeks?: BSMOptionGreeks;
+    projections?: OptionTargetProjection;
   } {
     const isNifty = instrument === 'NIFTY 50';
     const interval = isNifty ? 50 : 100;
@@ -156,12 +167,33 @@ export class SignalEngine {
     const prefix = isNifty ? 'NIFTY' : 'BANKNIFTY';
     const symbol = `${prefix} ${strike} ${optionType}`;
 
-    // Estimated ATM premium (~0.5% - 0.7% of underlying)
-    const estLower = Math.round(underlyingPrice * 0.005);
-    const estUpper = Math.round(underlyingPrice * 0.008);
-    const estimatedPremiumRange = `₹${estLower} - ₹${estUpper}`;
+    // Real-time BSM Option Greeks (Delta, Gamma, Theta, Vega, Rho)
+    const daysToExpiry = OptionGreeksEngine.estimateDaysToExpiry();
+    const greeks = OptionGreeksEngine.calculateGreeks(underlyingPrice, strike, optionType, daysToExpiry, vix);
+
+    let projections: OptionTargetProjection | undefined;
+    if (target1Spot && target2Spot && stopLossSpot) {
+      projections = OptionGreeksEngine.projectOptionTargets(
+        underlyingPrice,
+        target1Spot,
+        target2Spot,
+        stopLossSpot,
+        strike,
+        action,
+        vix,
+        daysToExpiry
+      );
+    }
+
+    const estLower = Math.max(10, Math.round(greeks.theoreticalPrice * 0.95));
+    const estUpper = Math.max(15, Math.round(greeks.theoreticalPrice * 1.05));
+    const deltaSign = greeks.delta > 0 ? '+' : '';
+    const estimatedPremiumRange = `₹${estLower} - ₹${estUpper} (Fair: ₹${greeks.theoreticalPrice.toFixed(0)}, Δ: ${deltaSign}${greeks.delta}, Θ: ${greeks.theta}/d)`;
     const lotSize = isNifty ? 50 : 15;
-    const positionSizing = `1 Lot (${lotSize} qty). Max capital risk: ₹${Math.round(estUpper * lotSize * 0.3)} (30% SL)`;
+    const maxLossInr = projections
+      ? Math.round(Math.max(10, (greeks.theoreticalPrice - projections.stopLossEstimatedPremium) * lotSize))
+      : Math.round(estUpper * lotSize * 0.3);
+    const positionSizing = `1 Lot (${lotSize} qty). Max risk: ₹${maxLossInr} (${greeks.moneyness})`;
 
     return {
       symbol,
@@ -169,6 +201,8 @@ export class SignalEngine {
       optionType,
       estimatedPremiumRange,
       positionSizing,
+      greeks,
+      projections,
     };
   }
 
@@ -368,8 +402,53 @@ export class SignalEngine {
     let direction: 'BUY' | 'SELL';
     let selectedStrategyName = 'Strategy 20: Master Confluence';
     let patternDescription = '';
+    let breakoutValidation: BreakoutValidationResult | undefined;
 
     if (activeChartPattern) {
+      // Validate Breakout Quality (Strong vs. Weak Breakout filter)
+      if (activeChartPattern.breakoutCandle) {
+        const recent5m = candles.slice(-5);
+        const followThrough = recent5m.length >= 2 ? recent5m[recent5m.length - 1] : undefined;
+        breakoutValidation = BreakoutValidator.evaluateBreakout(
+          activeChartPattern.breakoutCandle,
+          activeChartPattern.necklinePrice,
+          activeChartPattern.direction,
+          followThrough !== activeChartPattern.breakoutCandle ? followThrough : undefined
+        );
+
+        if (breakoutValidation.recommendation === 'DO_NOT_ENTER') {
+          failedConditions.push(`WEAK_BREAKOUT_FILTERED: ${breakoutValidation.classification}`);
+          return {
+            instrument,
+            signalType: 'WAIT',
+            canonicalSignalType: 'NO TRADE',
+            candleTimestamp,
+            candleDateTimeIST,
+            ruleVersion: 1,
+            deduplicationKey,
+            matchedConditions,
+            failedConditions,
+            breakoutValidation,
+            chartPattern: activeChartPattern,
+            marketRegime: regimeAnalysis.regime,
+            regimeDescription: regimeAnalysis.description,
+            selectedStrategy: activeChartPattern.patternName,
+            strategyVersion: 'v2.0',
+            explanation: {
+              decision: `NO TRADE: Weak Breakout Filtered (${breakoutValidation.reason}).`,
+              vixStatus,
+              vixValue: vix || undefined,
+              patterns: detectedPatterns,
+              reasons: [
+                `Strong vs. Weak Breakout Filter active: ${breakoutValidation.reason}`,
+                `Only strong breakouts (>= 60% candle body outside level) or confirmed retests are authorized.`,
+              ],
+            },
+            status: 'ACTIVE',
+          };
+        }
+      }
+
       direction = activeChartPattern.direction === 'BULLISH' ? 'BUY' : 'SELL';
       selectedStrategyName = activeChartPattern.patternName;
       patternDescription = activeChartPattern.patternName;
@@ -546,6 +625,13 @@ export class SignalEngine {
       confluenceBreakdown.push('~ India VIX: Baseline stable assumption (+10%)');
     }
 
+    // 6. Strong Breakout / Retest Bounce Confirmation (Weight: 10% Bonus)
+    if (breakoutValidation && breakoutValidation.isQualified) {
+      confluenceScore += 10;
+      confluenceBreakdown.push(`✓ Strong Breakout: ${breakoutValidation.classification} (${breakoutValidation.penetrationPct}% body penetration) (+10%)`);
+      matchedConditions.push(`BO-01: ${breakoutValidation.classification}`);
+    }
+
     // STRICT 80% WIN RATE GATE:
     // Only generate signals when Confluence Score >= 80% (A+ Setup)
     const minRequired = context.minConfluenceRequired ?? 80;
@@ -565,6 +651,8 @@ export class SignalEngine {
         failedConditions,
         confluenceScore,
         isHighProbability: false,
+        breakoutValidation,
+        chartPattern: activeChartPattern,
         marketRegime: regimeAnalysis.regime,
         regimeDescription: regimeAnalysis.description,
         selectedStrategy: 'Strategy 20: Master Confluence',
@@ -584,11 +672,15 @@ export class SignalEngine {
       };
     }
 
-    // Option Contract Details
+    // Option Contract Details with Analytical Greeks and Target Projections
     const optionContract = this.deriveOptionContract(
       instrument,
       canonicalAction === 'BUY CE' ? 'BUY_CE' : 'BUY_PE',
-      latestClosedCandle.close
+      latestClosedCandle.close,
+      vix || 14.0,
+      levels.target1,
+      levels.target2,
+      levels.stopLoss
     );
 
     // High Probability A+ Signal Confirmed!
@@ -607,7 +699,8 @@ export class SignalEngine {
       marketRegime: regimeAnalysis.regime,
       regimeDescription: regimeAnalysis.description,
       selectedStrategy: activeChartPattern ? selectedStrategyName : 'Strategy 20: Master Confluence (80%+ Gate)',
-      strategyVersion: 'v2.0',
+      chartPattern: activeChartPattern,
+      breakoutValidation,
       optionContract,
       strategyPerformance: {
         sampleSize: 48,
