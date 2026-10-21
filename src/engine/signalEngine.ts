@@ -12,7 +12,7 @@ export type SignalType = 'BUY' | 'SELL' | 'BUY CE' | 'BUY PE' | 'WAIT' | 'NO TRA
 export type CanonicalSignalType = 'BUY CE' | 'BUY PE' | 'WAIT' | 'NO TRADE' | 'NO DATA';
 
 export interface EvaluatedSignal {
-  instrument: 'NIFTY 50' | 'BANK NIFTY';
+  instrument: 'NIFTY 50' | 'BANK NIFTY' | 'FINNIFTY' | 'SENSEX';
   signalType: SignalType;
   canonicalSignalType: CanonicalSignalType;
   candleTimestamp: number;
@@ -144,7 +144,7 @@ export class SignalEngine {
    * Helper: Derive ATM Option Contract Details with Analytical BSM Option Greeks & Target Projections
    */
   public static deriveOptionContract(
-    instrument: 'NIFTY 50' | 'BANK NIFTY',
+    instrument: 'NIFTY 50' | 'BANK NIFTY' | 'FINNIFTY' | 'SENSEX',
     action: 'BUY_CE' | 'BUY_PE',
     underlyingPrice: number,
     vix: number = 14.0,
@@ -160,11 +160,30 @@ export class SignalEngine {
     greeks?: BSMOptionGreeks;
     projections?: OptionTargetProjection;
   } {
-    const isNifty = instrument === 'NIFTY 50';
-    const interval = isNifty ? 50 : 100;
+    let interval = 50;
+    let prefix = 'NIFTY';
+    let lotSize = 25;
+
+    if (instrument === 'BANK NIFTY') {
+      interval = 100;
+      prefix = 'BANKNIFTY';
+      lotSize = 15;
+    } else if (instrument === 'FINNIFTY') {
+      interval = 50;
+      prefix = 'FINNIFTY';
+      lotSize = 25;
+    } else if (instrument === 'SENSEX') {
+      interval = 100;
+      prefix = 'SENSEX';
+      lotSize = 10;
+    } else {
+      interval = 50;
+      prefix = 'NIFTY';
+      lotSize = 25;
+    }
+
     const strike = Math.round(underlyingPrice / interval) * interval;
     const optionType: 'CE' | 'PE' = action === 'BUY_CE' ? 'CE' : 'PE';
-    const prefix = isNifty ? 'NIFTY' : 'BANKNIFTY';
     const symbol = `${prefix} ${strike} ${optionType}`;
 
     // Real-time BSM Option Greeks (Delta, Gamma, Theta, Vega, Rho)
@@ -189,7 +208,6 @@ export class SignalEngine {
     const estUpper = Math.max(15, Math.round(greeks.theoreticalPrice * 1.05));
     const deltaSign = greeks.delta > 0 ? '+' : '';
     const estimatedPremiumRange = `₹${estLower} - ₹${estUpper} (Fair: ₹${greeks.theoreticalPrice.toFixed(0)}, Δ: ${deltaSign}${greeks.delta}, Θ: ${greeks.theta}/d)`;
-    const lotSize = isNifty ? 50 : 15;
     const maxLossInr = projections
       ? Math.round(Math.max(10, (greeks.theoreticalPrice - projections.stopLossEstimatedPremium) * lotSize))
       : Math.round(estUpper * lotSize * 0.3);
@@ -210,7 +228,7 @@ export class SignalEngine {
    * Main Evaluation Pipeline: 5m Closed Candles -> Regime -> Rules -> Decision
    */
   public static evaluate(
-    instrument: 'NIFTY 50' | 'BANK NIFTY',
+    instrument: 'NIFTY 50' | 'BANK NIFTY' | 'FINNIFTY' | 'SENSEX',
     context: EngineContext
   ): EvaluatedSignal {
     const {

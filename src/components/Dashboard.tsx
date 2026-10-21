@@ -17,7 +17,11 @@ import {
   Layers,
   Sparkles,
   Zap,
-  Sliders
+  Sliders,
+  Volume2,
+  VolumeX,
+  Calculator,
+  Compass
 } from 'lucide-react';
 import { TradingViewChart } from './TradingViewChart';
 import { LiveSignalCard } from './LiveSignalCard';
@@ -36,11 +40,43 @@ import { WorkerStatusBanner } from './WorkerStatusBanner';
 import { isStrategyAuthorizedForSignals } from '../engine/multiStrategyBacktester';
 import { MarketHoursHelper } from '../engine/marketHours';
 
+// New Features (Audio & Voice Alerts, CPR Predictor, Option Chain & PCR, Position Sizing)
+import { SoundAlertService } from '../services/soundAlertService';
+import { CprEngine, type CprLevels } from '../engine/cprEngine';
+import { OptionChainEngine, type OptionChainAnalysis } from '../engine/optionChainEngine';
+import { CprAnalysisCard } from './CprAnalysisCard';
+import { OptionChainAnalyticsCard } from './OptionChainAnalyticsCard';
+import { PositionSizingModal } from './PositionSizingModal';
+
+export type SupportedInstrument = 'NIFTY 50' | 'BANK NIFTY' | 'FINNIFTY' | 'SENSEX';
+
+const INSTRUMENTS: SupportedInstrument[] = ['NIFTY 50', 'BANK NIFTY', 'FINNIFTY', 'SENSEX'];
+
+const INSTRUMENT_CONFIG: Record<
+  SupportedInstrument,
+  { symbol: string; basePrice: number; variance: number; highOffset: number; lowOffset: number }
+> = {
+  'NIFTY 50': { symbol: 'NIFTY', basePrice: 24550, variance: 35, highOffset: 95, lowOffset: 65 },
+  'BANK NIFTY': { symbol: 'BANKNIFTY', basePrice: 51850, variance: 85, highOffset: 180, lowOffset: 140 },
+  'FINNIFTY': { symbol: 'FINNIFTY', basePrice: 23600, variance: 40, highOffset: 110, lowOffset: 75 },
+  'SENSEX': { symbol: 'SENSEX', basePrice: 80200, variance: 120, highOffset: 260, lowOffset: 210 },
+};
+
 export const Dashboard: React.FC = () => {
-  const [selectedInstrument, setSelectedInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
+  const [selectedInstrument, setSelectedInstrument] = useState<SupportedInstrument>('NIFTY 50');
   const [growwToken, setGrowwToken] = useState<string>('');
   const [isTokenModalOpen, setIsTokenModalOpen] = useState<boolean>(false);
   const [isBrokerConnected, setIsBrokerConnected] = useState<boolean>(activeMarketDataProvider.isReady());
+
+  // Audio Alerts State
+  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => SoundAlertService.isSoundEnabled());
+
+  // Risk & Position Sizing Calculator Modal
+  const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
+
+  // CPR & Option Chain States
+  const [cprLevels, setCprLevels] = useState<CprLevels | null>(null);
+  const [optionChain, setOptionChain] = useState<OptionChainAnalysis | null>(null);
 
   // Telegram Configuration State
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState<boolean>(false);
@@ -69,6 +105,17 @@ export const Dashboard: React.FC = () => {
   const [selectedStrategyId, setSelectedStrategyId] = useState<number>(33); // Strategy 33 = M Pattern / Double Top
   const [strategySignals, setStrategySignals] = useState<StrategySignalResult[]>([]);
 
+  const handleToggleSound = () => {
+    const next = !isSoundEnabled;
+    SoundAlertService.setSoundEnabled(next);
+    SoundAlertService.setVoiceEnabled(next);
+    setIsSoundEnabled(next);
+  };
+
+  const handleTestAudio = () => {
+    SoundAlertService.testAlert();
+  };
+
   const handleSaveTelegramConfig = (cfg: TelegramConfig) => {
     setTelegramConfig(cfg);
     localStorage.setItem('TELEGRAM_CONFIG', JSON.stringify(cfg));
@@ -89,9 +136,11 @@ export const Dashboard: React.FC = () => {
     setLoading(true);
     setErrorMsg('');
 
+    const cfg = INSTRUMENT_CONFIG[selectedInstrument];
+
     try {
       if (activeMarketDataProvider.isReady()) {
-        const symbol = selectedInstrument === 'NIFTY 50' ? 'NIFTY' : 'BANKNIFTY';
+        const symbol = cfg.symbol;
         
         // Fetch closed 5m candles for today (from 09:15 to current IST)
         const todayStr = new Date().toISOString().split('T')[0];
@@ -105,6 +154,24 @@ export const Dashboard: React.FC = () => {
         setCandles(fetchedCandles);
         setQuote(liveQuote);
 
+        const currentPrice = liveQuote.lastPrice || cfg.basePrice;
+        const prevHigh = liveQuote.high || (cfg.basePrice + cfg.highOffset);
+        const prevLow = liveQuote.low || (cfg.basePrice - cfg.lowOffset);
+        const prevClose = liveQuote.close || cfg.basePrice;
+
+        // Calculate Central Pivot Range (CPR)
+        const cpr = CprEngine.calculate(
+          prevHigh,
+          prevLow,
+          prevClose,
+          fetchedCandles.map(c => ({ high: c.high, low: c.low }))
+        );
+        setCprLevels(cpr);
+
+        // Generate Option Chain & PCR Analysis
+        const ocAnalysis = OptionChainEngine.generateSyntheticChain(currentPrice);
+        setOptionChain(ocAnalysis);
+
         // Calculate today's signals count and last signal for cooldown
         const instrumentSignals = signalHistory.filter(
           s => s.instrument === selectedInstrument && (s.signalType === 'BUY' || s.signalType === 'SELL')
@@ -117,9 +184,9 @@ export const Dashboard: React.FC = () => {
           vix,
           advances,
           declines,
-          prevDayHigh: liveQuote.high || (selectedInstrument === 'NIFTY 50' ? 24650 : 52200),
-          prevDayLow: liveQuote.low || (selectedInstrument === 'NIFTY 50' ? 24350 : 51600),
-          prevDayClose: liveQuote.close || (selectedInstrument === 'NIFTY 50' ? 24500 : 51900),
+          prevDayHigh: prevHigh,
+          prevDayLow: prevLow,
+          prevDayClose: prevClose,
           activeConditions: [],
           forceMarketHoursCheck: false,
           cooldownMinutes: 15,
@@ -138,19 +205,21 @@ export const Dashboard: React.FC = () => {
           setSignalHistory(prev => [evalResult, ...prev]);
           // Deliver to Telegram Outbox queue
           TelegramService.queueNotification(evalResult, telegramConfig);
+          // Audio & Speech Alert Announcement
+          SoundAlertService.notifySignal(
+            selectedInstrument,
+            evalResult.signalType,
+            evalResult.optionContract?.strike?.toString()
+          );
         }
 
         // Evaluate 38 Intraday Strategies
-        const pivots = PivotCalculator.calculatePivots(
-          liveQuote.high || 24650,
-          liveQuote.low || 24350,
-          liveQuote.close || 24500
-        );
+        const pivots = PivotCalculator.calculatePivots(prevHigh, prevLow, prevClose);
         const evaluatedStrategies = StrategyRegistry.evaluateAllStrategies(
           fetchedCandles,
           pivots,
-          liveQuote.high || 24650,
-          liveQuote.low || 24350
+          prevHigh,
+          prevLow
         );
         setStrategySignals(evaluatedStrategies);
       } else {
@@ -168,7 +237,8 @@ export const Dashboard: React.FC = () => {
   // Generate baseline closed 5m candles aligned with official NSE session hours (09:15 - 15:30 IST)
   const generateBaselineData = () => {
     const sessionInfo = MarketHoursHelper.getSessionInfo();
-    const basePrice = selectedInstrument === 'NIFTY 50' ? 24550 : 51850;
+    const cfg = INSTRUMENT_CONFIG[selectedInstrument];
+    const basePrice = cfg.basePrice;
     const mockCandles: MarketCandle[] = [];
 
     // Create 16 closed 5m candles counting back from the session close (15:30 IST) or current candle
@@ -176,7 +246,7 @@ export const Dashboard: React.FC = () => {
 
     for (let i = 15; i >= 0; i--) {
       const time = endTimestamp - i * 300;
-      const variation = Math.sin(i * 0.8) * (selectedInstrument === 'NIFTY 50' ? 35 : 85);
+      const variation = Math.sin(i * 0.8) * cfg.variance;
       const open = basePrice + variation;
       const close = open + (i % 3 === 0 ? 22 : -18);
       const high = Math.max(open, close) + 12;
@@ -204,27 +274,44 @@ export const Dashboard: React.FC = () => {
 
     setQuote({
       symbol: selectedInstrument,
-      exchange: 'NSE',
+      exchange: selectedInstrument === 'SENSEX' ? 'BSE' : 'NSE',
       segment: 'CASH',
       lastPrice: last.close,
       dayChange: 68.4,
       dayChangePerc: 0.28,
       open: basePrice,
-      high: basePrice + 95,
-      low: basePrice - 65,
+      high: basePrice + cfg.highOffset,
+      low: basePrice - cfg.lowOffset,
       close: last.close,
       volume: 620000,
       timestamp: last.timestamp,
     });
+
+    const high = basePrice + cfg.highOffset;
+    const low = basePrice - cfg.lowOffset;
+    const close = basePrice;
+
+    // Calculate Central Pivot Range (CPR)
+    const cpr = CprEngine.calculate(
+      high,
+      low,
+      close,
+      mockCandles.map(c => ({ high: c.high, low: c.low }))
+    );
+    setCprLevels(cpr);
+
+    // Option Chain & PCR Analysis
+    const ocAnalysis = OptionChainEngine.generateSyntheticChain(last.close);
+    setOptionChain(ocAnalysis);
 
     const evaluated = SignalEngine.evaluate(selectedInstrument, {
       candles: mockCandles,
       vix,
       advances,
       declines,
-      prevDayHigh: basePrice + 140,
-      prevDayLow: basePrice - 110,
-      prevDayClose: basePrice,
+      prevDayHigh: high,
+      prevDayLow: low,
+      prevDayClose: close,
       activeConditions: [],
       forceMarketHoursCheck: false,
     });
@@ -243,12 +330,12 @@ export const Dashboard: React.FC = () => {
     setCurrentSignal(evaluated);
 
     // Evaluate 38 Strategies
-    const pivots = PivotCalculator.calculatePivots(basePrice + 140, basePrice - 110, basePrice);
+    const pivots = PivotCalculator.calculatePivots(high, low, close);
     const stratEval = StrategyRegistry.evaluateAllStrategies(
       mockCandles,
       pivots,
-      basePrice + 140,
-      basePrice - 110
+      high,
+      low
     );
     setStrategySignals(stratEval);
   };
@@ -264,14 +351,14 @@ export const Dashboard: React.FC = () => {
 
       {/* Top Controls Toolbar */}
       <div className="bg-[#0d1424]/90 border border-gray-800/80 rounded-2xl p-3 sm:p-4 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-        {/* Instrument Switcher (Mobile Friendly Segmented Control) */}
+        {/* Instrument Switcher (Mobile Friendly Segmented Control - 4 Indices) */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-black/40 border border-gray-800 rounded-xl w-full sm:w-auto">
-            {(['NIFTY 50', 'BANK NIFTY'] as const).map(inst => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-black/40 border border-gray-800 rounded-xl w-full sm:w-auto">
+            {INSTRUMENTS.map(inst => (
               <button
                 key={inst}
                 onClick={() => setSelectedInstrument(inst)}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide transition text-center flex items-center justify-center gap-1.5 ${
+                className={`px-3 py-2 rounded-lg text-xs font-bold tracking-wide transition text-center flex items-center justify-center gap-1 ${
                   selectedInstrument === inst
                     ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                     : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
@@ -294,8 +381,42 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Status Indicators */}
+        {/* Live Controls & Status Indicators */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between sm:justify-start pt-2 md:pt-0 border-t border-gray-800/60 md:border-0">
+          {/* Audio Alert Toggle & Test Button */}
+          <div className="flex items-center gap-1 bg-black/40 border border-gray-800 p-0.5 rounded-lg">
+            <button
+              onClick={handleToggleSound}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition ${
+                isSoundEnabled
+                  ? 'bg-emerald-950/80 text-emerald-400 hover:bg-emerald-900/80'
+                  : 'bg-rose-950/80 text-rose-300 hover:bg-rose-900/80'
+              }`}
+              title={isSoundEnabled ? 'ध्वनी सूचना सुरू आहे (Click to mute)' : 'ध्वनी सूचना म्यूट आहे (Click to unmute)'}
+            >
+              {isSoundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-rose-400" />}
+              <span>{isSoundEnabled ? 'Voice ON' : 'Muted'}</span>
+            </button>
+
+            <button
+              onClick={handleTestAudio}
+              className="px-2 py-1 text-[10px] text-cyan-300 hover:text-white hover:bg-gray-800 rounded transition font-medium"
+              title="Test audio chime & voice alert"
+            >
+              Test
+            </button>
+          </div>
+
+          {/* Risk & Position Sizing Calculator Button */}
+          <button
+            onClick={() => setIsRiskModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-amber-600/20 to-yellow-600/20 hover:from-amber-600/30 hover:to-yellow-600/30 border border-amber-600/50 text-accentGold rounded-lg text-xs font-bold transition shadow-sm active:scale-95"
+            title="भांडवल आणि रिस्कनुसार अचूक लॉट साईज कॅल्क्युलेटर उघडा"
+          >
+            <Calculator className="w-3.5 h-3.5 text-accentGold" />
+            <span className="text-[11px]">🧮 लॉट कॅल्क</span>
+          </button>
+
           {/* Broker Status Pill */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-black/40 border border-gray-800 rounded-lg text-xs">
             <span className={`w-2 h-2 rounded-full ${angelOneClient.isConfigured() ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'}`} />
@@ -361,6 +482,23 @@ export const Dashboard: React.FC = () => {
             declines={declines}
           />
         </div>
+      </div>
+
+      {/* Analytics Hub: CPR Daily Predictor & Option Chain / PCR Meter */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {cprLevels && (
+          <CprAnalysisCard
+            cprLevels={cprLevels}
+            currentPrice={quote?.lastPrice || INSTRUMENT_CONFIG[selectedInstrument].basePrice}
+            instrument={selectedInstrument}
+          />
+        )}
+        {optionChain && (
+          <OptionChainAnalyticsCard
+            analysis={optionChain}
+            instrument={selectedInstrument}
+          />
+        )}
       </div>
 
       {/* 38 Intraday Strategies Hub */}
@@ -502,6 +640,15 @@ export const Dashboard: React.FC = () => {
         onClose={() => setIsTelegramModalOpen(false)}
         config={telegramConfig}
         onSaveConfig={handleSaveTelegramConfig}
+      />
+
+      {/* Position Sizing & Risk Management Modal */}
+      <PositionSizingModal
+        isOpen={isRiskModalOpen}
+        onClose={() => setIsRiskModalOpen(false)}
+        instrument={selectedInstrument}
+        defaultEntryPrice={currentSignal?.levels?.entryPrice || (selectedInstrument === 'NIFTY 50' ? 120 : 250)}
+        defaultStopLossPrice={currentSignal?.levels?.stopLoss || (selectedInstrument === 'NIFTY 50' ? 90 : 200)}
       />
     </div>
   );

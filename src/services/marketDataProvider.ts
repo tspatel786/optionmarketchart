@@ -4,8 +4,12 @@ import { angelOneClient, AngelOneApiClient } from './angelOneApiClient';
 export interface MarketDataProvider {
   name: string;
   isReady(): boolean;
-  get5mClosedCandles(symbol: 'NIFTY' | 'BANKNIFTY', startTime: string, endTime: string): Promise<MarketCandle[]>;
-  getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | string): Promise<LiveQuote>;
+  get5mClosedCandles(
+    symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string,
+    startTime: string,
+    endTime: string
+  ): Promise<MarketCandle[]>;
+  getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string): Promise<LiveQuote>;
 }
 
 export class AngelOneMarketDataProvider implements MarketDataProvider {
@@ -18,14 +22,14 @@ export class AngelOneMarketDataProvider implements MarketDataProvider {
   }
 
   public async get5mClosedCandles(
-    symbol: 'NIFTY' | 'BANKNIFTY',
+    symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string,
     startTime: string,
     endTime: string
   ): Promise<MarketCandle[]> {
     return this.client.get5mClosedCandles(symbol, startTime, endTime);
   }
 
-  public async getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | string): Promise<LiveQuote> {
+  public async getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string): Promise<LiveQuote> {
     return this.client.getLiveQuote(symbol);
   }
 }
@@ -38,14 +42,14 @@ export class GrowwMarketDataProvider implements MarketDataProvider {
   }
 
   public async get5mClosedCandles(
-    symbol: 'NIFTY' | 'BANKNIFTY',
+    symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string,
     startTime: string,
     endTime: string
   ): Promise<MarketCandle[]> {
     return growwService.get5mCandles(symbol, startTime, endTime);
   }
 
-  public async getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | string): Promise<LiveQuote> {
+  public async getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string): Promise<LiveQuote> {
     return growwService.getLiveQuote(symbol);
   }
 }
@@ -74,7 +78,7 @@ export class AdaptiveMarketDataProvider implements MarketDataProvider {
   }
 
   public async get5mClosedCandles(
-    symbol: 'NIFTY' | 'BANKNIFTY',
+    symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string,
     startTime: string,
     endTime: string
   ): Promise<MarketCandle[]> {
@@ -96,7 +100,7 @@ export class AdaptiveMarketDataProvider implements MarketDataProvider {
     throw new Error('NO_BROKER_CONFIGURED: Neither Angel One nor Groww credentials configured');
   }
 
-  public async getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | string): Promise<LiveQuote> {
+  public async getQuote(symbol: 'NIFTY' | 'BANKNIFTY' | 'FINNIFTY' | 'SENSEX' | string): Promise<LiveQuote> {
     if (this.angelOne.isReady()) {
       try {
         return await this.angelOne.getQuote(symbol);

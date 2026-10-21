@@ -122,6 +122,7 @@ export const ANGEL_TOKENS: Record<string, { symbol: string; token: string; excha
   'BANKNIFTY': { symbol: 'Nifty Bank', token: '99926009', exchange: 'NSE' },
   'BANK NIFTY': { symbol: 'Nifty Bank', token: '99926009', exchange: 'NSE' },
   'FINNIFTY': { symbol: 'Nifty Fin Service', token: '99926037', exchange: 'NSE' },
+  'SENSEX': { symbol: 'BSE SENSEX', token: '99919000', exchange: 'BSE' },
 };
 
 export class AngelOneApiClient {
