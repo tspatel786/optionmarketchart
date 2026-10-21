@@ -148,6 +148,59 @@ export class StrategyRegistry {
   }
 
   /**
+   * Strategy 3: VWAP Cross & Bounce
+   */
+  public static evaluateStrategy3_VWAP(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const prev = candles[candles.length - 2] || latest;
+    const isBounceCE = (latest.low <= snap.vwap || prev.low <= snap.vwap) && latest.close > snap.vwap && latest.close > latest.open;
+    const isRejectionPE = (latest.high >= snap.vwap || prev.high >= snap.vwap) && latest.close < snap.vwap && latest.close < latest.open;
+
+    if (isBounceCE) {
+      const risk = Math.max(10, latest.close - Math.min(latest.low, snap.vwap));
+      return {
+        strategyId: 3,
+        strategyName: 'VWAP Cross & Bounce',
+        category: 'Institutional Volume',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `Bullish bounce off intraday VWAP (₹${snap.vwap}) with positive 5m candle close.`,
+        target1_5R: Number((latest.close + risk * 1.5).toFixed(2)),
+        target2R: Number((latest.close + risk * 2.0).toFixed(2)),
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (isRejectionPE) {
+      const risk = Math.max(10, Math.max(latest.high, snap.vwap) - latest.close);
+      return {
+        strategyId: 3,
+        strategyName: 'VWAP Cross & Bounce',
+        category: 'Institutional Volume',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `Bearish rejection off intraday VWAP (₹${snap.vwap}) with negative 5m candle close.`,
+        target1_5R: Number((latest.close - risk * 1.5).toFixed(2)),
+        target2R: Number((latest.close - risk * 2.0).toFixed(2)),
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 3,
+      strategyName: 'VWAP Cross & Bounce',
+      category: 'Institutional Volume',
+      action: 'WAIT',
+      confidence: 30,
+      ruleTriggered: 'Price trading away from VWAP. Waiting for retest and decisive bounce/rejection.',
+    };
+  }
+
+  /**
    * Strategy 4: Supertrend + VWAP Confluence
    */
   public static evaluateStrategy4_SupertrendVWAP(
@@ -238,6 +291,62 @@ export class StrategyRegistry {
   }
 
   /**
+   * Strategy 6: ADX Trend Strength Confirmation
+   */
+  public static evaluateStrategy6_ADX(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const adx = snap.adx;
+
+    if (adx.adx < 20) {
+      return {
+        strategyId: 6,
+        strategyName: 'ADX Trend Strength',
+        category: 'Momentum Filter',
+        action: 'WAIT',
+        confidence: 10,
+        ruleTriggered: `Avoid: ADX (${adx.adx}) < 20 indicates weak consolidation/choppy market.`,
+      };
+    }
+
+    if (adx.adx >= 25 && adx.plusDI > adx.minusDI && latest.close > snap.ema20) {
+      return {
+        strategyId: 6,
+        strategyName: 'ADX Trend Strength',
+        category: 'Momentum Filter',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `Strong bullish momentum confirmed: ADX ${adx.adx} >= 25 with +DI (${adx.plusDI}) > -DI (${adx.minusDI}).`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (adx.adx >= 25 && adx.minusDI > adx.plusDI && latest.close < snap.ema20) {
+      return {
+        strategyId: 6,
+        strategyName: 'ADX Trend Strength',
+        category: 'Momentum Filter',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `Strong bearish momentum confirmed: ADX ${adx.adx} >= 25 with -DI (${adx.minusDI}) > +DI (${adx.plusDI}).`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 6,
+      strategyName: 'ADX Trend Strength',
+      category: 'Momentum Filter',
+      action: 'WAIT',
+      confidence: 40,
+      ruleTriggered: `ADX is ${adx.adx} with neutral directional index positioning.`,
+    };
+  }
+
+  /**
    * Strategy 7: Bollinger Band Squeeze Breakout
    */
   public static evaluateStrategy7_BBSqueeze(
@@ -279,6 +388,51 @@ export class StrategyRegistry {
       action: 'WAIT',
       confidence: 30,
       ruleTriggered: bb.isSqueezed ? 'Bands in tight squeeze. Coiling for imminent breakout.' : 'Price inside Bollinger Band range.',
+    };
+  }
+
+  /**
+   * Strategy 8: MACD Zero-Line / Signal Crossover
+   */
+  public static evaluateStrategy8_MACD(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const macd = snap.macd;
+
+    if (macd.crossover === 'BULLISH' && macd.histogram > 0) {
+      return {
+        strategyId: 8,
+        strategyName: 'MACD Crossover',
+        category: 'Momentum Confluence',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `MACD Line (${macd.macdLine}) crossed above Signal (${macd.signalLine}) with green histogram (${macd.histogram}).`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (macd.crossover === 'BEARISH' && macd.histogram < 0) {
+      return {
+        strategyId: 8,
+        strategyName: 'MACD Crossover',
+        category: 'Momentum Confluence',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `MACD Line (${macd.macdLine}) crossed below Signal (${macd.signalLine}) with red histogram (${macd.histogram}).`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 8,
+      strategyName: 'MACD Crossover',
+      category: 'Momentum Confluence',
+      action: 'WAIT',
+      confidence: 35,
+      ruleTriggered: 'No decisive MACD signal crossover. MACD histogram in neutral band.',
     };
   }
 
@@ -329,6 +483,141 @@ export class StrategyRegistry {
   }
 
   /**
+   * Strategy 10: Fibonacci 50% - 61.8% Golden Pocket
+   */
+  public static evaluateStrategy10_Fibonacci(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    if (candles.length < 10) {
+      return {
+        strategyId: 10,
+        strategyName: 'Fibonacci 50%-61.8% Golden Pocket',
+        category: 'Retracement Bounce',
+        action: 'WAIT',
+        confidence: 0,
+        ruleTriggered: 'Insufficient candle history for swing measurement.',
+      };
+    }
+
+    const sessionSlice = candles.slice(-25);
+    const swingHigh = Math.max(...sessionSlice.map(c => c.high));
+    const swingLow = Math.min(...sessionSlice.map(c => c.low));
+    const range = swingHigh - swingLow;
+
+    if (range < 30) {
+      return {
+        strategyId: 10,
+        strategyName: 'Fibonacci 50%-61.8% Golden Pocket',
+        category: 'Retracement Bounce',
+        action: 'WAIT',
+        confidence: 20,
+        ruleTriggered: 'Session range too narrow for reliable Fibonacci levels.',
+      };
+    }
+
+    const fib50 = swingHigh - range * 0.50;
+    const fib618 = swingHigh - range * 0.618;
+
+    if (latest.low <= fib50 && latest.close >= fib618 && latest.close > latest.open && snap.ema20 > snap.ema50) {
+      return {
+        strategyId: 10,
+        strategyName: 'Fibonacci 50%-61.8% Golden Pocket',
+        category: 'Retracement Bounce',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `Price respected 50%-61.8% Golden Pocket (₹${fib618.toFixed(1)} - ₹${fib50.toFixed(1)}) with bullish rejection.`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    const bearFib50 = swingLow + range * 0.50;
+    const bearFib618 = swingLow + range * 0.618;
+    if (latest.high >= bearFib50 && latest.close <= bearFib618 && latest.close < latest.open && snap.ema20 < snap.ema50) {
+      return {
+        strategyId: 10,
+        strategyName: 'Fibonacci 50%-61.8% Golden Pocket',
+        category: 'Retracement Bounce',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `Price rejected at 50%-61.8% Golden Pocket (₹${bearFib50.toFixed(1)} - ₹${bearFib618.toFixed(1)}) with bearish rejection.`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 10,
+      strategyName: 'Fibonacci 50%-61.8% Golden Pocket',
+      category: 'Retracement Bounce',
+      action: 'WAIT',
+      confidence: 30,
+      ruleTriggered: 'Price outside Golden Pocket zone. Waiting for healthy retracement.',
+    };
+  }
+
+  /**
+   * Strategy 11: Double Top / Double Bottom Reversal
+   */
+  public static evaluateStrategy11_DoubleTopBottom(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    if (candles.length < 15) {
+      return {
+        strategyId: 11,
+        strategyName: 'Double Top / Double Bottom',
+        category: 'Structural Reversal',
+        action: 'WAIT',
+        confidence: 0,
+        ruleTriggered: 'Need at least 15 candles to evaluate swing structures.',
+      };
+    }
+
+    const prevSlice = candles.slice(-20, -3);
+    const recentMin = Math.min(...prevSlice.map(c => c.low));
+    const recentMax = Math.max(...prevSlice.map(c => c.high));
+
+    const isDoubleBottom = Math.abs(latest.low - recentMin) / recentMin < 0.0015 && latest.close > latest.open && snap.rsi < 45;
+    if (isDoubleBottom) {
+      return {
+        strategyId: 11,
+        strategyName: 'Double Top / Double Bottom',
+        category: 'Structural Reversal',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `Double Bottom confirmed at ₹${recentMin.toFixed(1)} with bullish reversal candle.`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    const isDoubleTop = Math.abs(latest.high - recentMax) / recentMax < 0.0015 && latest.close < latest.open && snap.rsi > 55;
+    if (isDoubleTop) {
+      return {
+        strategyId: 11,
+        strategyName: 'Double Top / Double Bottom',
+        category: 'Structural Reversal',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `Double Top confirmed at ₹${recentMax.toFixed(1)} with bearish reversal candle.`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 11,
+      strategyName: 'Double Top / Double Bottom',
+      category: 'Structural Reversal',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No double top/bottom structural retest detected at swing boundaries.',
+    };
+  }
+
+  /**
    * Strategy 12: Pivot Point R1/R2 Breakout & S1/S2 Breakdown
    */
   public static evaluateStrategy12_Pivots(
@@ -369,6 +658,112 @@ export class StrategyRegistry {
       action: 'WAIT',
       confidence: 35,
       ruleTriggered: `Price near Central Pivot (${pivots.pivot}). Awaiting breakout of R1 or breakdown of S1.`,
+    };
+  }
+
+  /**
+   * Strategy 13: Multi-Timeframe Confluence (15m + 5m)
+   */
+  public static evaluateStrategy13_MultiTimeframe(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const is15mBullish = snap.ema20 > snap.ema50 && latest.close > snap.vwap;
+    const is15mBearish = snap.ema20 < snap.ema50 && latest.close < snap.vwap;
+
+    if (is15mBullish && latest.close > snap.ema9 && latest.close > latest.open && snap.rsi > 55) {
+      return {
+        strategyId: 13,
+        strategyName: 'Multi-Timeframe Confluence (15m + 5m)',
+        category: 'Higher Timeframe Alignment',
+        action: 'BUY_CE',
+        confidence: 90,
+        ruleTriggered: '15m Bullish Trend (EMA 20 > 50 + Above VWAP) perfectly aligned with 5m momentum trigger.',
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (is15mBearish && latest.close < snap.ema9 && latest.close < latest.open && snap.rsi < 45) {
+      return {
+        strategyId: 13,
+        strategyName: 'Multi-Timeframe Confluence (15m + 5m)',
+        category: 'Higher Timeframe Alignment',
+        action: 'BUY_PE',
+        confidence: 90,
+        ruleTriggered: '15m Bearish Trend (EMA 20 < 50 + Below VWAP) perfectly aligned with 5m momentum trigger.',
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 13,
+      strategyName: 'Multi-Timeframe Confluence (15m + 5m)',
+      category: 'Higher Timeframe Alignment',
+      action: 'WAIT',
+      confidence: 30,
+      ruleTriggered: 'Timeframe conflict: 5m action contradicts higher 15m trend. Trade blocked.',
+    };
+  }
+
+  /**
+   * Strategy 14: Bull / Bear Flag Pattern
+   */
+  public static evaluateStrategy14_FlagPattern(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    if (candles.length < 12) {
+      return {
+        strategyId: 14,
+        strategyName: 'Bull / Bear Flag Pattern',
+        category: 'Trend Continuation',
+        action: 'WAIT',
+        confidence: 0,
+        ruleTriggered: 'Insufficient bars to establish flag pole and consolidation channel.',
+      };
+    }
+
+    const poleSlice = candles.slice(-8, -4);
+    const flagSlice = candles.slice(-4, -1);
+    const poleMove = poleSlice[poleSlice.length - 1].close - poleSlice[0].open;
+    const flagHigh = Math.max(...flagSlice.map(c => c.high));
+    const flagLow = Math.min(...flagSlice.map(c => c.low));
+
+    if (poleMove > 35 && latest.close > flagHigh && latest.close > snap.vwap) {
+      return {
+        strategyId: 14,
+        strategyName: 'Bull / Bear Flag Pattern',
+        category: 'Trend Continuation',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `Bull Flag breakout: Candle closed above consolidation resistance (${flagHigh.toFixed(1)}) following strong impulse move.`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (poleMove < -35 && latest.close < flagLow && latest.close < snap.vwap) {
+      return {
+        strategyId: 14,
+        strategyName: 'Bull / Bear Flag Pattern',
+        category: 'Trend Continuation',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `Bear Flag breakdown: Candle closed below consolidation support (${flagLow.toFixed(1)}) following strong selloff impulse.`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 14,
+      strategyName: 'Bull / Bear Flag Pattern',
+      category: 'Trend Continuation',
+      action: 'WAIT',
+      confidence: 30,
+      ruleTriggered: 'No completed flag pattern with confirmed breakout/breakdown candle.',
     };
   }
 
@@ -418,6 +813,227 @@ export class StrategyRegistry {
   }
 
   /**
+   * Strategy 16: Gap Up / Gap Down Fill (Mean Reversion)
+   */
+  public static evaluateStrategy16_GapFill(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels,
+    prevDayClose: number
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const first = candles[0];
+    if (!first || !prevDayClose) {
+      return {
+        strategyId: 16,
+        strategyName: 'Gap Fill Setup',
+        category: 'Mean Reversion',
+        action: 'WAIT',
+        confidence: 0,
+        ruleTriggered: 'Previous Day Close not available for gap calculation.',
+      };
+    }
+
+    const gap = first.open - prevDayClose;
+    const gapPct = (gap / prevDayClose) * 100;
+
+    if (gapPct >= 0.35 && latest.close < first.open && latest.close < snap.vwap) {
+      return {
+        strategyId: 16,
+        strategyName: 'Gap Fill Setup',
+        category: 'Mean Reversion',
+        action: 'BUY_PE',
+        confidence: 80,
+        ruleTriggered: `Gap Up (+${gapPct.toFixed(2)}%) rejected open; breaking down toward Previous Day Close (₹${prevDayClose}).`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (gapPct <= -0.35 && latest.close > first.open && latest.close > snap.vwap) {
+      return {
+        strategyId: 16,
+        strategyName: 'Gap Fill Setup',
+        category: 'Mean Reversion',
+        action: 'BUY_CE',
+        confidence: 80,
+        ruleTriggered: `Gap Down (${gapPct.toFixed(2)}%) rejected open; rallying back toward Previous Day Close (₹${prevDayClose}).`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 16,
+      strategyName: 'Gap Fill Setup',
+      category: 'Mean Reversion',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'Opening gap is small or price holding initial gap direction without fade trigger.',
+    };
+  }
+
+  /**
+   * Strategy 17: 9-EMA Momentum Scalp
+   */
+  public static evaluateStrategy17_EMAScalp(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const prev = candles[candles.length - 2] || latest;
+    const adx = snap.adx;
+
+    if (adx.adx >= 25 && latest.close > snap.ema9 && prev.close <= snap.ema9 && latest.close > latest.open) {
+      return {
+        strategyId: 17,
+        strategyName: '9-EMA Momentum Scalp',
+        category: 'Quick Scalp',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: `High ADX (${adx.adx}) momentum scalp: 5m candle surged above 9-EMA (₹${snap.ema9}).`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (adx.adx >= 25 && latest.close < snap.ema9 && prev.close >= snap.ema9 && latest.close < latest.open) {
+      return {
+        strategyId: 17,
+        strategyName: '9-EMA Momentum Scalp',
+        category: 'Quick Scalp',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: `High ADX (${adx.adx}) momentum scalp: 5m candle dropped below 9-EMA (₹${snap.ema9}).`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 17,
+      strategyName: '9-EMA Momentum Scalp',
+      category: 'Quick Scalp',
+      action: 'WAIT',
+      confidence: 30,
+      ruleTriggered: 'Price hugging 9-EMA or ADX insufficient (< 25) for clean scalp follow-through.',
+    };
+  }
+
+  /**
+   * Strategy 18: Head and Shoulders Structural Reversal
+   */
+  public static evaluateStrategy18_HeadAndShoulders(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    if (candles.length < 20) {
+      return {
+        strategyId: 18,
+        strategyName: 'Head and Shoulders Reversal',
+        category: 'Structural Reversal',
+        action: 'WAIT',
+        confidence: 0,
+        ruleTriggered: 'Need at least 20 candles to identify multi-peak head & shoulders formation.',
+      };
+    }
+
+    const s1 = candles.slice(-20, -14);
+    const s2 = candles.slice(-14, -7);
+    const s3 = candles.slice(-7, -1);
+
+    const leftShoulderHigh = Math.max(...s1.map(c => c.high));
+    const headHigh = Math.max(...s2.map(c => c.high));
+    const rightShoulderHigh = Math.max(...s3.map(c => c.high));
+    const neckline = Math.min(...candles.slice(-14, -1).map(c => c.low));
+
+    if (headHigh > leftShoulderHigh && headHigh > rightShoulderHigh && latest.close < neckline && latest.close < snap.vwap) {
+      return {
+        strategyId: 18,
+        strategyName: 'Head and Shoulders Reversal',
+        category: 'Structural Reversal',
+        action: 'BUY_PE',
+        confidence: 90,
+        ruleTriggered: `Classic Head & Shoulders confirmed: Neckline (₹${neckline.toFixed(1)}) breakdown with Head at ₹${headHigh.toFixed(1)}.`,
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    const leftShoulderLow = Math.min(...s1.map(c => c.low));
+    const headLow = Math.min(...s2.map(c => c.low));
+    const rightShoulderLow = Math.min(...s3.map(c => c.low));
+    const invNeckline = Math.max(...candles.slice(-14, -1).map(c => c.high));
+
+    if (headLow < leftShoulderLow && headLow < rightShoulderLow && latest.close > invNeckline && latest.close > snap.vwap) {
+      return {
+        strategyId: 18,
+        strategyName: 'Head and Shoulders Reversal',
+        category: 'Structural Reversal',
+        action: 'BUY_CE',
+        confidence: 90,
+        ruleTriggered: `Inverse Head & Shoulders confirmed: Neckline (₹${invNeckline.toFixed(1)}) breakout with Head low at ₹${headLow.toFixed(1)}.`,
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 18,
+      strategyName: 'Head and Shoulders Reversal',
+      category: 'Structural Reversal',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No complete Head & Shoulders structural formation with confirmed neckline breach.',
+    };
+  }
+
+  /**
+   * Strategy 19: Expiry Day Delta Expansion Setup
+   */
+  public static evaluateStrategy19_ExpiryDelta(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    pivots: PivotLevels,
+    istDate: Date = new Date()
+  ): StrategySignalResult {
+    const latest = candles[candles.length - 1];
+    const hours = istDate.getHours();
+    const minutes = istDate.getMinutes();
+    const isExpiryWindow = hours >= 13 && (hours < 15 || (hours === 15 && minutes <= 15));
+
+    if (isExpiryWindow && latest.close > snap.vwap && snap.adx.adx >= 22 && latest.close > snap.ema20) {
+      return {
+        strategyId: 19,
+        strategyName: 'Expiry Day Delta Expansion',
+        category: 'Special Session',
+        action: 'BUY_CE',
+        confidence: 85,
+        ruleTriggered: 'Afternoon Expiry session (13:00 - 15:15 IST): Bullish gamma/delta expansion above VWAP & 20-EMA.',
+        levels: PivotCalculator.deriveTradeLevels('BUY', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    if (isExpiryWindow && latest.close < snap.vwap && snap.adx.adx >= 22 && latest.close < snap.ema20) {
+      return {
+        strategyId: 19,
+        strategyName: 'Expiry Day Delta Expansion',
+        category: 'Special Session',
+        action: 'BUY_PE',
+        confidence: 85,
+        ruleTriggered: 'Afternoon Expiry session (13:00 - 15:15 IST): Bearish gamma/delta breakdown below VWAP & 20-EMA.',
+        levels: PivotCalculator.deriveTradeLevels('SELL', latest.close, latest.low, latest.high, pivots),
+      };
+    }
+
+    return {
+      strategyId: 19,
+      strategyName: 'Expiry Day Delta Expansion',
+      category: 'Special Session',
+      action: 'WAIT',
+      confidence: 20,
+      ruleTriggered: isExpiryWindow ? 'Expiry hours active but lack directional expansion momentum.' : 'Outside Expiry afternoon momentum window (13:00 - 15:15 IST).',
+    };
+  }
+
+  /**
    * Strategy 20: Strategy Combination Score (Multi-Strategy Master Confluence)
    * The user's designated "Sarvat Useful" (Most Useful) strategy!
    * Combines all strategy signals into a weighted A+ score.
@@ -429,23 +1045,41 @@ export class StrategyRegistry {
     pdh: number,
     pdl: number
   ): StrategySignalResult {
+    const pdc = candles[0]?.open || pdl;
     const s1 = this.evaluateStrategy1_ORB(candles, snap, pivots);
     const s2 = this.evaluateStrategy2_EMAPullback(candles, snap, pivots);
+    const s3 = this.evaluateStrategy3_VWAP(candles, snap, pivots);
     const s4 = this.evaluateStrategy4_SupertrendVWAP(candles, snap, pivots);
     const s5 = this.evaluateStrategy5_RSI(candles, snap, pivots);
+    const s6 = this.evaluateStrategy6_ADX(candles, snap, pivots);
     const s7 = this.evaluateStrategy7_BBSqueeze(candles, snap, pivots);
+    const s8 = this.evaluateStrategy8_MACD(candles, snap, pivots);
     const s9 = this.evaluateStrategy9_PDH_PDL(candles, snap, pivots, pdh, pdl);
+    const s10 = this.evaluateStrategy10_Fibonacci(candles, snap, pivots);
+    const s11 = this.evaluateStrategy11_DoubleTopBottom(candles, snap, pivots);
     const s12 = this.evaluateStrategy12_Pivots(candles, snap, pivots);
+    const s13 = this.evaluateStrategy13_MultiTimeframe(candles, snap, pivots);
+    const s14 = this.evaluateStrategy14_FlagPattern(candles, snap, pivots);
     const s15 = this.evaluateStrategy15_NR7(candles, snap, pivots);
+    const s16 = this.evaluateStrategy16_GapFill(candles, snap, pivots, pdc);
+    const s17 = this.evaluateStrategy17_EMAScalp(candles, snap, pivots);
+    const s18 = this.evaluateStrategy18_HeadAndShoulders(candles, snap, pivots);
+    const s19 = this.evaluateStrategy19_ExpiryDelta(candles, snap, pivots);
     const s21 = this.evaluateStrategy21_KeltnerBreakout(candles, snap, pivots);
     const s22 = this.evaluateStrategy22_DonchianBreakout(candles, snap, pivots);
     const s23 = this.evaluateStrategy23_ATRExpansion(candles, snap, pivots);
     const s24 = this.evaluateStrategy24_LiquiditySweep(candles, snap, pivots);
     const s25 = this.evaluateStrategy25_FairValueGap(candles, snap, pivots);
     const s26 = this.evaluateStrategy26_VolumeBreakout(candles, snap, pivots);
+    const s27 = this.evaluateStrategy27_RelativeStrength(candles, snap, pivots, pdl);
     const s28 = this.evaluateStrategy28_Divergence(candles, snap, pivots);
+    const s29 = this.evaluateStrategy29_GapPlay(candles, snap, pivots, pdc);
 
-    const all = [s1, s2, s4, s5, s7, s9, s12, s15, s21, s22, s23, s24, s25, s26, s28];
+    const all = [
+      s1, s2, s3, s4, s5, s6, s7, s8, s9, s10,
+      s11, s12, s13, s14, s15, s16, s17, s18, s19,
+      s21, s22, s23, s24, s25, s26, s27, s28, s29
+    ];
     const ceMatches = all.filter(s => s.action === 'BUY_CE');
     const peMatches = all.filter(s => s.action === 'BUY_PE');
 
@@ -1166,12 +1800,53 @@ export class StrategyRegistry {
     candles: MarketCandle[],
     pivots: PivotLevels,
     pdh: number,
-    pdl: number
+    pdl: number,
+    prevDayClose?: number
   ): StrategySignalResult[] {
     const snap = IndicatorCalculator.getSnapshot(candles);
+    const pdc = prevDayClose || candles[0]?.open || pdl;
+
+    const s30: StrategySignalResult = {
+      strategyId: 30,
+      strategyName: 'Adaptive Trailing Stop',
+      category: 'Trade Management',
+      action: 'WAIT',
+      confidence: 85,
+      ruleTriggered: 'Dynamic ATR trailing stop: Trails to BE+0.5 ATR at 1.5R and locks T1 at 2.0R profit.',
+    };
+
+    const eventStatus = this.evaluateStrategy31_EventRiskFilter();
+    const s31: StrategySignalResult = {
+      strategyId: 31,
+      strategyName: 'Event-Risk Scheduled Filter',
+      category: 'Risk Mitigation',
+      action: 'WAIT',
+      confidence: eventStatus.action === 'LOCKOUT' ? 0 : 90,
+      ruleTriggered: eventStatus.action === 'LOCKOUT'
+        ? `EVENT LOCKOUT ACTIVE: ${eventStatus.eventName} within 30m window. All trade signals blocked.`
+        : 'No high-impact RBI Policy or Union Budget event scheduled for today. Trading permitted.',
+    };
 
     return [
-      this.evaluateStrategy32_RegimeAwareSelector(candles, snap, pivots, pdh, pdl),
+      this.evaluateStrategy1_ORB(candles, snap, pivots),
+      this.evaluateStrategy2_EMAPullback(candles, snap, pivots),
+      this.evaluateStrategy3_VWAP(candles, snap, pivots),
+      this.evaluateStrategy4_SupertrendVWAP(candles, snap, pivots),
+      this.evaluateStrategy5_RSI(candles, snap, pivots),
+      this.evaluateStrategy6_ADX(candles, snap, pivots),
+      this.evaluateStrategy7_BBSqueeze(candles, snap, pivots),
+      this.evaluateStrategy8_MACD(candles, snap, pivots),
+      this.evaluateStrategy9_PDH_PDL(candles, snap, pivots, pdh, pdl),
+      this.evaluateStrategy10_Fibonacci(candles, snap, pivots),
+      this.evaluateStrategy11_DoubleTopBottom(candles, snap, pivots),
+      this.evaluateStrategy12_Pivots(candles, snap, pivots),
+      this.evaluateStrategy13_MultiTimeframe(candles, snap, pivots),
+      this.evaluateStrategy14_FlagPattern(candles, snap, pivots),
+      this.evaluateStrategy15_NR7(candles, snap, pivots),
+      this.evaluateStrategy16_GapFill(candles, snap, pivots, pdc),
+      this.evaluateStrategy17_EMAScalp(candles, snap, pivots),
+      this.evaluateStrategy18_HeadAndShoulders(candles, snap, pivots),
+      this.evaluateStrategy19_ExpiryDelta(candles, snap, pivots),
       this.evaluateStrategy20_MasterCombination(candles, snap, pivots, pdh, pdl),
       this.evaluateStrategy21_KeltnerBreakout(candles, snap, pivots),
       this.evaluateStrategy22_DonchianBreakout(candles, snap, pivots),
@@ -1181,15 +1856,10 @@ export class StrategyRegistry {
       this.evaluateStrategy26_VolumeBreakout(candles, snap, pivots),
       this.evaluateStrategy27_RelativeStrength(candles, snap, pivots, pdl),
       this.evaluateStrategy28_Divergence(candles, snap, pivots),
-      this.evaluateStrategy29_GapPlay(candles, snap, pivots, pdl),
-      this.evaluateStrategy1_ORB(candles, snap, pivots),
-      this.evaluateStrategy2_EMAPullback(candles, snap, pivots),
-      this.evaluateStrategy4_SupertrendVWAP(candles, snap, pivots),
-      this.evaluateStrategy5_RSI(candles, snap, pivots),
-      this.evaluateStrategy7_BBSqueeze(candles, snap, pivots),
-      this.evaluateStrategy9_PDH_PDL(candles, snap, pivots, pdh, pdl),
-      this.evaluateStrategy12_Pivots(candles, snap, pivots),
-      this.evaluateStrategy15_NR7(candles, snap, pivots),
+      this.evaluateStrategy29_GapPlay(candles, snap, pivots, pdc),
+      s30,
+      s31,
+      this.evaluateStrategy32_RegimeAwareSelector(candles, snap, pivots, pdh, pdl),
     ];
   }
 }

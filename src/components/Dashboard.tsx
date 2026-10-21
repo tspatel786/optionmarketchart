@@ -26,6 +26,7 @@ import { TelegramService, type TelegramConfig } from '../services/telegramServic
 import { StrategyRegistry, type StrategySignalResult } from '../engine/strategyRegistry';
 import { PivotCalculator } from '../engine/pivotCalculator';
 import { WorkerStatusBanner } from './WorkerStatusBanner';
+import { isStrategyAuthorizedForSignals } from '../engine/multiStrategyBacktester';
 
 export const Dashboard: React.FC = () => {
   const [selectedInstrument, setSelectedInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
@@ -347,7 +348,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 20 Intraday Strategies Hub (CE / PE Options) */}
+      {/* 32 Intraday Strategies Hub (CE / PE Options) */}
       <div className="bg-cardBg border border-borderCol rounded-xl p-4 sm:p-5 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-borderCol gap-3">
           <div>
@@ -356,11 +357,11 @@ export const Dashboard: React.FC = () => {
                 <Target className="w-4 h-4" />
               </span>
               <h3 className="text-sm sm:text-base font-bold text-white">
-                20 Intraday Strategies (CE / PE Setup Hub)
+                32 Intraday Strategies (CE / PE Setup Hub)
               </h3>
             </div>
             <p className="text-[11px] text-gray-400 mt-0.5">
-              Strict 80% Win Rate filters for {selectedInstrument}. Select any strategy or use Master Combination Score.
+              Strict 75%+ Win Rate Gate active. Only top historical performers generate trade signals; lower win-rate strategies are muted.
             </p>
           </div>
 
@@ -372,15 +373,14 @@ export const Dashboard: React.FC = () => {
               aria-label="Select Trading Strategy"
               className="w-full sm:w-auto bg-darkBg border border-borderCol rounded-lg px-3 py-1.5 text-xs text-white font-medium focus:outline-none focus:border-neutralBlue"
             >
-              <option value={20}>⭐ Strategy 20: Master Combination Score (80%+ A+ Filter)</option>
-              <option value={1}>Strategy 1: Opening Range Breakout (15m ORB)</option>
-              <option value={2}>Strategy 2: EMA Trend Pullback (20 / 50)</option>
-              <option value={4}>Strategy 4: Supertrend + VWAP Confluence</option>
-              <option value={5}>Strategy 5: RSI Momentum + Structure (60/40)</option>
-              <option value={7}>Strategy 7: Bollinger Band Squeeze Breakout</option>
-              <option value={9}>Strategy 9: Previous Day High / Low (PDH/PDL) Breakout</option>
-              <option value={12}>Strategy 12: Pivot Point R1/S1 Breakout & Retest</option>
-              <option value={15}>Strategy 15: NR7 (Narrow Range 7) Breakout</option>
+              {strategySignals.map(s => {
+                const isQual = isStrategyAuthorizedForSignals(s.strategyId);
+                return (
+                  <option key={s.strategyId} value={s.strategyId}>
+                    {isQual ? '🟢' : '🔒'} Strategy {s.strategyId}: {s.strategyName} {isQual ? '(Active)' : '(Muted)'}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -393,18 +393,28 @@ export const Dashboard: React.FC = () => {
           const isCE = currentStrat.action === 'BUY_CE';
           const isPE = currentStrat.action === 'BUY_PE';
           const isWait = currentStrat.action === 'WAIT';
+          const isQualified = isStrategyAuthorizedForSignals(currentStrat.strategyId);
 
           return (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-darkBg/80 rounded-xl border border-borderCol">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-bold text-white">
                       {currentStrat.strategyName}
                     </span>
                     <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700">
                       {currentStrat.category}
                     </span>
+                    {isQualified ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                        🟢 ACTIVE IN SIGNAL ENGINE
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-900/80">
+                        🔒 MUTED (&lt; 75% WIN RATE)
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-300 mt-1 font-medium">
                     {currentStrat.ruleTriggered}
