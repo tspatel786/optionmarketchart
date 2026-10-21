@@ -15,11 +15,11 @@ describe('Multi-Strategy Historical Backtest Engine & Qualification Gate', () =>
     expect(bnCandles[0].close).toBeGreaterThan(45000);
   });
 
-  it('should evaluate all 32 intraday strategies on historical candles and generate ranked leaderboard', () => {
+  it('should evaluate all 38 intraday strategies on historical candles and generate ranked leaderboard', () => {
     const candles = HistoricalDataService.getHistoricalCandles('NIFTY 50');
     const summary = MultiStrategyBacktester.runAllStrategiesBacktest('NIFTY 50', candles, 75);
 
-    expect(summary.leaderboard.length).toBe(32);
+    expect(summary.leaderboard.length).toBe(38);
     expect(summary.qualifiedStrategiesCount).toBeGreaterThan(0);
     expect(summary.mutedStrategiesCount).toBeGreaterThan(0);
     expect(summary.topStrategy.netWinRate).toBeGreaterThanOrEqual(75);
@@ -29,7 +29,7 @@ describe('Multi-Strategy Historical Backtest Engine & Qualification Gate', () =>
     expect(summary.leaderboard[0].netWinRate).toBeGreaterThanOrEqual(summary.leaderboard[1].netWinRate);
   });
 
-  it('should evaluate all 32 strategies through StrategyRegistry.evaluateAllStrategies', () => {
+  it('should evaluate all 38 strategies through StrategyRegistry.evaluateAllStrategies', () => {
     const candles = HistoricalDataService.getHistoricalCandles('NIFTY 50').slice(0, 50);
     const pdh = 24650;
     const pdl = 24450;
@@ -37,10 +37,10 @@ describe('Multi-Strategy Historical Backtest Engine & Qualification Gate', () =>
     const pivots = PivotCalculator.calculatePivots(pdh, pdl, pdc);
 
     const allEvals = StrategyRegistry.evaluateAllStrategies(candles, pivots, pdh, pdl, pdc);
-    expect(allEvals.length).toBe(32);
+    expect(allEvals.length).toBe(38);
 
     const strategyIds = allEvals.map(s => s.strategyId);
-    for (let id = 1; id <= 32; id++) {
+    for (let id = 1; id <= 38; id++) {
       expect(strategyIds).toContain(id);
     }
   });
@@ -54,6 +54,10 @@ describe('Multi-Strategy Historical Backtest Engine & Qualification Gate', () =>
     expect(isStrategyAuthorizedForSignals(23)).toBe(true); // ATR Expansion
     expect(isStrategyAuthorizedForSignals(26)).toBe(true); // Volume Breakout
     expect(isStrategyAuthorizedForSignals(32)).toBe(true); // Regime-Aware Selector
+    expect(isStrategyAuthorizedForSignals(33)).toBe(true); // Double Top M Pattern
+    expect(isStrategyAuthorizedForSignals(34)).toBe(true); // Double Bottom W Pattern
+    expect(isStrategyAuthorizedForSignals(37)).toBe(true); // Neckline Retest S/R Flip
+    expect(isStrategyAuthorizedForSignals(38)).toBe(true); // Failed Breakout Trap
 
     // Low win rate / unverified strategies are muted
     expect(isStrategyAuthorizedForSignals(999)).toBe(false);

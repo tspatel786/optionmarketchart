@@ -1,5 +1,6 @@
 import type { MarketCandle } from '../services/growwService';
 import { CandlestickPatternEvaluator, type PatternMatchResult } from './candlestickPatterns';
+import { ChartPatternDetector, type DetectedChartPattern } from './chartPatternDetector';
 import { PivotCalculator, type PivotLevels, type TradeLevels } from './pivotCalculator';
 import type { TradingCondition } from '../types/rules';
 import { RegimeSelector, type MarketRegimeType, type RegimeAnalysis } from './regimeSelector';
@@ -24,6 +25,7 @@ export interface EvaluatedSignal {
   regimeDescription?: string;
   selectedStrategy?: string;
   strategyVersion?: string;
+  chartPattern?: DetectedChartPattern;
   optionContract?: {
     symbol: string;
     strike: number;
@@ -58,7 +60,7 @@ export interface EngineContext {
   prevDayHigh: number;
   prevDayLow: number;
   prevDayClose: number;
-  activeConditions: TradingCondition[];
+  activeConditions?: TradingCondition[];
   riskPauseActive?: boolean; // 1-2 day cool-off pause toggle
   forceMarketHoursCheck?: boolean;
   cooldownMinutes?: number; // Configurable gap between same-direction signals (e.g. 15 mins)
@@ -324,9 +326,20 @@ export class SignalEngine {
       }
     }
 
-    // RULE 5: Candlestick Pattern Recognition on 5m Closed Candle
+    // RULE 5A: Candlestick Pattern Recognition on 5m Closed Candle
     const detectedPatterns = CandlestickPatternEvaluator.evaluateAll(candles);
-    if (detectedPatterns.length === 0) {
+
+    // RULE 5B: Multi-Timeframe Chart Pattern Detection (15m Structure + 5m Breakout/Retest)
+    const detectedChartPatterns = ChartPatternDetector.detect(candles, {}, {
+      vwap: snap.vwap,
+      marketRegime: regimeAnalysis.regime,
+      vix,
+    });
+    const activeChartPattern = detectedChartPatterns.find(
+      p => p.status === 'BREAKOUT' || p.status === 'RETEST_CONFIRMED' || p.status === 'FAILED_BREAKOUT'
+    );
+
+    if (detectedPatterns.length === 0 && !activeChartPattern) {
       return {
         instrument,
         signalType: 'WAIT',
@@ -336,27 +349,45 @@ export class SignalEngine {
         ruleVersion: 1,
         deduplicationKey,
         matchedConditions,
-        failedConditions: ['NO_CONFIRMED_5M_PATTERN'],
+        failedConditions: ['NO_CONFIRMED_PATTERN'],
         marketRegime: regimeAnalysis.regime,
         regimeDescription: regimeAnalysis.description,
         selectedStrategy: 'Strategy 20: Master Confluence',
         strategyVersion: 'v1.0',
         explanation: {
-          decision: 'WAIT: No high-conviction 5-minute reversal or breakout pattern on completed candle.',
+          decision: 'WAIT: No high-conviction 5-minute candlestick pattern or structural chart pattern confirmed.',
           vixStatus,
           vixValue: vix || undefined,
           patterns: detectedPatterns,
-          reasons: ['Awaiting completed 5m candlestick confirmation (Hammer, Shooting Star, Engulfing, etc.).'],
+          reasons: ['Awaiting completed 5m candlestick or structural chart pattern breakout/retest.'],
         },
         status: 'ACTIVE',
       };
     }
 
-    const primaryPattern = detectedPatterns[0];
-    const direction: 'BUY' | 'SELL' = primaryPattern.direction;
+    let direction: 'BUY' | 'SELL';
+    let selectedStrategyName = 'Strategy 20: Master Confluence';
+    let patternDescription = '';
+
+    if (activeChartPattern) {
+      direction = activeChartPattern.direction === 'BULLISH' ? 'BUY' : 'SELL';
+      selectedStrategyName = activeChartPattern.patternName;
+      patternDescription = activeChartPattern.patternName;
+      matchedConditions.push(`CP: ${activeChartPattern.patternName}`);
+      reasons.push(`Chart Pattern Trigger: ${activeChartPattern.patternName} (${activeChartPattern.explanation})`);
+      if (detectedPatterns.length > 0) {
+        matchedConditions.push(`${detectedPatterns[0].patternCode}: ${detectedPatterns[0].patternName}`);
+        reasons.push(`Candlestick Confluence: ${detectedPatterns[0].patternName}`);
+      }
+    } else {
+      const primaryPattern = detectedPatterns[0];
+      direction = primaryPattern.direction;
+      patternDescription = primaryPattern.patternName;
+      matchedConditions.push(`${primaryPattern.patternCode}: ${primaryPattern.patternName}`);
+      reasons.push(`5m Pattern Trigger: ${primaryPattern.patternName} (${primaryPattern.explanation})`);
+    }
+
     const canonicalAction: 'BUY CE' | 'BUY PE' = direction === 'BUY' ? 'BUY CE' : 'BUY PE';
-    matchedConditions.push(`${primaryPattern.patternCode}: ${primaryPattern.patternName}`);
-    reasons.push(`5m Pattern Trigger: ${primaryPattern.patternName} (${primaryPattern.explanation})`);
 
     // RULE 6: Daily Signal Cap
     const maxSignalsPerDay = context.dailySignalCap ?? 3;
@@ -421,14 +452,19 @@ export class SignalEngine {
       };
     }
 
-    // Calculate Trade Levels using Pivot Framework
-    const levels = PivotCalculator.deriveTradeLevels(
-      direction,
-      latestClosedCandle.close,
-      latestClosedCandle.low,
-      latestClosedCandle.high,
-      pivots
-    );
+    // Calculate Trade Levels using Pattern Geometry or Pivot Framework
+    let levels: TradeLevels;
+    if (activeChartPattern && activeChartPattern.geometry) {
+      levels = activeChartPattern.geometry;
+    } else {
+      levels = PivotCalculator.deriveTradeLevels(
+        direction,
+        latestClosedCandle.close,
+        latestClosedCandle.low,
+        latestClosedCandle.high,
+        pivots
+      );
+    }
 
     // ==========================================
     // 80% WIN RATE CONFLUENCE SCORING ENGINE
@@ -436,9 +472,15 @@ export class SignalEngine {
     let confluenceScore = 0;
     const confluenceBreakdown: string[] = [];
 
-    // 1. Candlestick Pattern Confirmation (Weight: 25%)
+    // 1. Pattern Confirmation (Weight: 25%)
     confluenceScore += 25;
-    confluenceBreakdown.push(`✓ Pattern: ${primaryPattern.patternName} (+25%)`);
+    confluenceBreakdown.push(`✓ Pattern: ${patternDescription} (+25%)`);
+
+    // Dual Pattern Synergy Bonus (Both Chart Pattern & Candlestick Pattern)
+    if (activeChartPattern && detectedPatterns.length > 0) {
+      confluenceScore += 10;
+      confluenceBreakdown.push(`✓ Multi-Timeframe Pattern Synergy (${detectedPatterns[0].patternName} on ${activeChartPattern.patternName}) (+10%)`);
+    }
 
     // 2. Key Support / Resistance Pivot Proximity (Weight: 25%)
     const keyLevels = [pivots.pivot, pivots.r1, pivots.r2, pivots.s1, pivots.s2, prevDayHigh, prevDayLow];
@@ -457,9 +499,9 @@ export class SignalEngine {
 
     // 3. 9-EMA Trend / Reversal Alignment (Weight: 20%)
     const ema9 = this.calculateEMA(candles, 9);
-    const isReversalPattern = ['PA-01', 'PA-02', 'PA-07', 'PA-08'].includes(primaryPattern.patternCode);
+    const isReversalPattern = activeChartPattern || (detectedPatterns.length > 0 && ['PA-01', 'PA-02', 'PA-07', 'PA-08'].includes(detectedPatterns[0].patternCode));
     const isTrendAligned = isReversalPattern
-      ? isNearKeyLevel
+      ? isNearKeyLevel || (activeChartPattern !== undefined)
       : direction === 'BUY'
       ? latestClosedCandle.close >= ema9
       : latestClosedCandle.close <= ema9;
@@ -564,7 +606,7 @@ export class SignalEngine {
       isHighProbability: true,
       marketRegime: regimeAnalysis.regime,
       regimeDescription: regimeAnalysis.description,
-      selectedStrategy: 'Strategy 20: Master Confluence (80%+ Gate)',
+      selectedStrategy: activeChartPattern ? selectedStrategyName : 'Strategy 20: Master Confluence (80%+ Gate)',
       strategyVersion: 'v2.0',
       optionContract,
       strategyPerformance: {
@@ -575,7 +617,7 @@ export class SignalEngine {
         validationStatus: 'VERIFIED',
       },
       explanation: {
-        decision: `HIGH-PROBABILITY (>= 80% WIN RATE) ${direction} (${canonicalAction}) SIGNAL: Confirmed by ${primaryPattern.patternName} with ${confluenceScore}% Confluence in ${regimeAnalysis.regime}.`,
+        decision: `HIGH-PROBABILITY (>= 80% WIN RATE) ${direction} (${canonicalAction}) SIGNAL: Confirmed by ${patternDescription} with ${confluenceScore}% Confluence in ${regimeAnalysis.regime}.`,
         vixStatus,
         vixValue: vix || undefined,
         confluenceBreakdown,

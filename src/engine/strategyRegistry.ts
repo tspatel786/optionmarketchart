@@ -7,6 +7,7 @@ import type { MarketCandle } from '../services/growwService';
 import { IndicatorCalculator, type IndicatorSnapshot } from './indicators';
 import type { PivotLevels, TradeLevels } from './pivotCalculator';
 import { PivotCalculator } from './pivotCalculator';
+import { ChartPatternDetector } from './chartPatternDetector';
 
 export type OptionAction = 'BUY_CE' | 'BUY_PE' | 'WAIT';
 
@@ -1794,7 +1795,217 @@ export class StrategyRegistry {
   }
 
   /**
-   * Evaluate all 32 strategies and return list
+   * Strategy 33: M Pattern (Double Top) Breakdown
+   */
+  public static evaluateStrategy33_DoubleTopM(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    _pivots: PivotLevels
+  ): StrategySignalResult {
+    const patterns = ChartPatternDetector.detect(candles, {}, { vwap: snap.vwap });
+    const mPattern = patterns.find(p => p.patternType === 'DOUBLE_TOP_M' && (p.status === 'BREAKOUT' || p.status === 'RETEST_CONFIRMED'));
+
+    if (mPattern) {
+      return {
+        strategyId: 33,
+        strategyName: 'M Pattern (Double Top) Breakdown',
+        category: 'Chart Pattern Reversal',
+        action: 'BUY_PE',
+        confidence: mPattern.confidence,
+        ruleTriggered: mPattern.explanation,
+        levels: mPattern.geometry,
+        target1_5R: mPattern.geometry.target1,
+        target2R: mPattern.geometry.target2,
+      };
+    }
+
+    return {
+      strategyId: 33,
+      strategyName: 'M Pattern (Double Top) Breakdown',
+      category: 'Chart Pattern Reversal',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No completed 5m M pattern neckline breakdown detected.',
+    };
+  }
+
+  /**
+   * Strategy 34: W Pattern (Double Bottom) Breakout
+   */
+  public static evaluateStrategy34_DoubleBottomW(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    _pivots: PivotLevels
+  ): StrategySignalResult {
+    const patterns = ChartPatternDetector.detect(candles, {}, { vwap: snap.vwap });
+    const wPattern = patterns.find(p => p.patternType === 'DOUBLE_BOTTOM_W' && (p.status === 'BREAKOUT' || p.status === 'RETEST_CONFIRMED'));
+
+    if (wPattern) {
+      return {
+        strategyId: 34,
+        strategyName: 'W Pattern (Double Bottom) Breakout',
+        category: 'Chart Pattern Reversal',
+        action: 'BUY_CE',
+        confidence: wPattern.confidence,
+        ruleTriggered: wPattern.explanation,
+        levels: wPattern.geometry,
+        target1_5R: wPattern.geometry.target1,
+        target2R: wPattern.geometry.target2,
+      };
+    }
+
+    return {
+      strategyId: 34,
+      strategyName: 'W Pattern (Double Bottom) Breakout',
+      category: 'Chart Pattern Reversal',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No completed 5m W pattern neckline breakout detected.',
+    };
+  }
+
+  /**
+   * Strategy 35: Head & Shoulders Breakdown
+   */
+  public static evaluateStrategy35_HeadAndShoulders(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    _pivots: PivotLevels
+  ): StrategySignalResult {
+    const patterns = ChartPatternDetector.detect(candles, {}, { vwap: snap.vwap });
+    const hs = patterns.find(p => p.patternType === 'HEAD_AND_SHOULDERS' && p.status === 'BREAKOUT');
+
+    if (hs) {
+      return {
+        strategyId: 35,
+        strategyName: 'Head and Shoulders Breakdown',
+        category: 'Chart Pattern Reversal',
+        action: 'BUY_PE',
+        confidence: hs.confidence,
+        ruleTriggered: hs.explanation,
+        levels: hs.geometry,
+        target1_5R: hs.geometry.target1,
+        target2R: hs.geometry.target2,
+      };
+    }
+
+    return {
+      strategyId: 35,
+      strategyName: 'Head and Shoulders Breakdown',
+      category: 'Chart Pattern Reversal',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No completed Head & Shoulders neckline breakdown detected.',
+    };
+  }
+
+  /**
+   * Strategy 36: Inverse Head & Shoulders Breakout
+   */
+  public static evaluateStrategy36_InverseHeadAndShoulders(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    _pivots: PivotLevels
+  ): StrategySignalResult {
+    const patterns = ChartPatternDetector.detect(candles, {}, { vwap: snap.vwap });
+    const invHs = patterns.find(p => p.patternType === 'INVERSE_HEAD_AND_SHOULDERS' && p.status === 'BREAKOUT');
+
+    if (invHs) {
+      return {
+        strategyId: 36,
+        strategyName: 'Inverse Head & Shoulders Breakout',
+        category: 'Chart Pattern Reversal',
+        action: 'BUY_CE',
+        confidence: invHs.confidence,
+        ruleTriggered: invHs.explanation,
+        levels: invHs.geometry,
+        target1_5R: invHs.geometry.target1,
+        target2R: invHs.geometry.target2,
+      };
+    }
+
+    return {
+      strategyId: 36,
+      strategyName: 'Inverse Head & Shoulders Breakout',
+      category: 'Chart Pattern Reversal',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No completed Inverse Head & Shoulders neckline breakout detected.',
+    };
+  }
+
+  /**
+   * Strategy 37: Neckline Retest & Institutional S/R Flip
+   */
+  public static evaluateStrategy37_NecklineRetest(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    _pivots: PivotLevels
+  ): StrategySignalResult {
+    const patterns = ChartPatternDetector.detect(candles, {}, { vwap: snap.vwap });
+    const retest = patterns.find(p => p.patternType === 'NECKLINE_RETEST_BOUNCE');
+
+    if (retest) {
+      return {
+        strategyId: 37,
+        strategyName: 'Neckline Retest & S/R Flip Bounce',
+        category: 'Chart Pattern Retest',
+        action: retest.direction === 'BULLISH' ? 'BUY_CE' : 'BUY_PE',
+        confidence: retest.confidence,
+        ruleTriggered: retest.explanation,
+        levels: retest.geometry,
+        target1_5R: retest.geometry.target1,
+        target2R: retest.geometry.target2,
+      };
+    }
+
+    return {
+      strategyId: 37,
+      strategyName: 'Neckline Retest & S/R Flip Bounce',
+      category: 'Chart Pattern Retest',
+      action: 'WAIT',
+      confidence: 25,
+      ruleTriggered: 'No completed 5m rejection at broken neckline level.',
+    };
+  }
+
+  /**
+   * Strategy 38: Failed Breakout Trap Reversal
+   */
+  public static evaluateStrategy38_FailedBreakoutTrap(
+    candles: MarketCandle[],
+    snap: IndicatorSnapshot,
+    _pivots: PivotLevels
+  ): StrategySignalResult {
+    const patterns = ChartPatternDetector.detect(candles, {}, { vwap: snap.vwap });
+    const trap = patterns.find(p => p.patternType === 'FAILED_BREAKOUT_TRAP');
+
+    if (trap) {
+      return {
+        strategyId: 38,
+        strategyName: 'Failed Breakout Trap Reversal',
+        category: 'False Breakout Trap',
+        action: trap.direction === 'BULLISH' ? 'BUY_CE' : 'BUY_PE',
+        confidence: trap.confidence,
+        ruleTriggered: trap.explanation,
+        levels: trap.geometry,
+        target1_5R: trap.geometry.target1,
+        target2R: trap.geometry.target2,
+      };
+    }
+
+    return {
+      strategyId: 38,
+      strategyName: 'Failed Breakout Trap Reversal',
+      category: 'False Breakout Trap',
+      action: 'WAIT',
+      confidence: 20,
+      ruleTriggered: 'No failed breakout trap detected.',
+    };
+  }
+
+  /**
+   * Evaluate all 38 strategies and return list
    */
   public static evaluateAllStrategies(
     candles: MarketCandle[],
@@ -1860,6 +2071,12 @@ export class StrategyRegistry {
       s30,
       s31,
       this.evaluateStrategy32_RegimeAwareSelector(candles, snap, pivots, pdh, pdl),
+      this.evaluateStrategy33_DoubleTopM(candles, snap, pivots),
+      this.evaluateStrategy34_DoubleBottomW(candles, snap, pivots),
+      this.evaluateStrategy35_HeadAndShoulders(candles, snap, pivots),
+      this.evaluateStrategy36_InverseHeadAndShoulders(candles, snap, pivots),
+      this.evaluateStrategy37_NecklineRetest(candles, snap, pivots),
+      this.evaluateStrategy38_FailedBreakoutTrap(candles, snap, pivots),
     ];
   }
 }

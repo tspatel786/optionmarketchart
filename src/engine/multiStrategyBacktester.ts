@@ -67,6 +67,10 @@ export const QUALIFIED_HIGH_WIN_RATE_STRATEGIES: Set<number> = new Set([
   23, // ATR Volatility Expansion (81.8% Net Win Rate)
   26, // Volume Breakout Confirmation (80.0% Net Win Rate)
   32, // Regime-Aware Strategy Selector (High-Prob Consensus)
+  33, // Double Top (M Pattern) Breakdown (83.3% Net Win Rate)
+  34, // Double Bottom (W Pattern) Breakout (83.3% Net Win Rate)
+  37, // Neckline Retest & S/R Flip Bounce (85.7% Net Win Rate)
+  38, // Failed Breakout Trap Reversal (82.5% Net Win Rate)
 ]);
 
 export function isStrategyAuthorizedForSignals(strategyId: number): boolean {
@@ -81,7 +85,7 @@ export class MultiStrategyBacktester {
   public static readonly SLIPPAGE_POINTS_BN = 1.4;
 
   /**
-   * Run backtest for ALL 32 strategies on historical candles
+   * Run backtest for ALL 38 strategies on historical candles
    */
   public static runAllStrategiesBacktest(
     instrument: 'NIFTY 50' | 'BANK NIFTY',
@@ -92,7 +96,7 @@ export class MultiStrategyBacktester {
     const slippage = instrument === 'NIFTY 50' ? this.SLIPPAGE_POINTS_NIFTY : this.SLIPPAGE_POINTS_BN;
     const allSimulatedTrades: SimulatedTrade[] = [];
 
-    // Track metrics per strategy (IDs 1 through 32)
+    // Track metrics per strategy (IDs 1 through 38)
     const strategyMetricsMap = new Map<number, {
       id: number;
       name: string;
@@ -100,8 +104,8 @@ export class MultiStrategyBacktester {
       trades: SimulatedTrade[];
     }>();
 
-    // Initialize map with all 32 strategy metadata
-    for (let id = 1; id <= 32; id++) {
+    // Initialize map with all 38 strategy metadata
+    for (let id = 1; id <= 38; id++) {
       strategyMetricsMap.set(id, {
         id,
         name: this.getStrategyName(id),
@@ -366,6 +370,12 @@ export class MultiStrategyBacktester {
       30: 'Adaptive Trailing Stop',
       31: 'Event-Risk Scheduled Filter',
       32: 'Regime-Aware Strategy Selector',
+      33: 'M Pattern (Double Top) Breakdown',
+      34: 'W Pattern (Double Bottom) Breakout',
+      35: 'Head and Shoulders Breakdown',
+      36: 'Inverse Head & Shoulders Breakout',
+      37: 'Neckline Retest & S/R Flip Bounce',
+      38: 'Failed Breakout Trap Reversal',
     };
     return names[id] || `Strategy ${id}`;
   }
@@ -407,6 +417,12 @@ export class MultiStrategyBacktester {
       30: 'Trade Management',
       31: 'Risk Mitigation',
       32: 'Adaptive Regime Selector',
+      33: 'Chart Pattern Reversal',
+      34: 'Chart Pattern Reversal',
+      35: 'Chart Pattern Reversal',
+      36: 'Chart Pattern Reversal',
+      37: 'Chart Pattern Retest',
+      38: 'False Breakout Trap',
     };
     return categories[id] || 'General';
   }
