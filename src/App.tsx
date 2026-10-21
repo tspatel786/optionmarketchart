@@ -19,6 +19,7 @@ import { BacktestView } from './components/BacktestView';
 import { PaperTradingPortfolio } from './components/PaperTradingPortfolio';
 import { LoginPage } from './components/LoginPage';
 import { AppAuthService, type AppUser } from './services/appAuthService';
+import { MarketHoursHelper } from './engine/marketHours';
 
 export const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => AppAuthService.isAuthenticated());
@@ -187,12 +188,17 @@ export const App: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-gray-300 font-mono">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              5M Closed
-            </span>
-            <span className="text-gray-600">|</span>
-            <span className="text-cyan-400">NSE 09:15 - 15:30</span>
+            {MarketHoursHelper.getSessionInfo().isOpen ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                NSE LIVE (09:15 - 15:30)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                मार्केट बंद (3:30 PM Close) • 15:30 Closing Data
+              </span>
+            )}
           </div>
         </div>
 

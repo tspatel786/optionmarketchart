@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, ShieldAlert, CheckCircle2, Clock, Cpu, RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { MarketHoursHelper } from '../engine/marketHours';
 
 export interface WorkerHeartbeatData {
   status: 'RUNNING' | 'IDLE_OUTSIDE_HOURS' | 'STALE_FEED' | 'BROKER_AUTH_EXPIRED' | 'ERROR' | 'STOPPED';
@@ -63,7 +64,12 @@ export const WorkerStatusBanner: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const sessionInfo = MarketHoursHelper.getSessionInfo();
+
   const getStatusColor = (status?: string) => {
+    if (!sessionInfo.isOpen && (!status || status === 'IDLE_OUTSIDE_HOURS' || status === 'RUNNING')) {
+      return 'bg-blue-950/40 border-cyan-800/60 text-cyan-300';
+    }
     switch (status) {
       case 'RUNNING':
         return 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300';
@@ -79,6 +85,9 @@ export const WorkerStatusBanner: React.FC = () => {
   };
 
   const getStatusLabel = (status?: string) => {
+    if (!sessionInfo.isOpen) {
+      return 'STANDBY: NSE MARKET CLOSED (दुपारी 03:30 वाजता मार्केट बंद झाले)';
+    }
     switch (status) {
       case 'RUNNING':
         return '24/7 BACKGROUND WORKER: ACTIVE';
@@ -111,7 +120,7 @@ export const WorkerStatusBanner: React.FC = () => {
       <div className="flex items-center gap-2.5">
         <div className="relative flex items-center justify-center">
           <Activity className="w-4 h-4 text-cyan-400" />
-          {heartbeat?.status === 'RUNNING' && (
+          {heartbeat?.status === 'RUNNING' && sessionInfo.isOpen && (
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           )}
         </div>
@@ -131,7 +140,7 @@ export const WorkerStatusBanner: React.FC = () => {
       <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px] text-gray-300 border-t md:border-t-0 border-gray-800/80 pt-2 md:pt-0">
         <div className="flex items-center gap-1.5" title="Last background evaluation cycle">
           <Clock className="w-3.5 h-3.5 text-gray-400" />
-          <span>Last 5M Candle: <strong className="text-white">{heartbeat?.last_candle_ist || 'Live Feed'}</strong></span>
+          <span>Last 5M Candle: <strong className="text-white">{sessionInfo.isOpen ? (heartbeat?.last_candle_ist || 'Live Feed') : '03:30:00 pm (Session Close)'}</strong></span>
         </div>
 
         <div className="flex items-center gap-1.5" title="Broker API Health">

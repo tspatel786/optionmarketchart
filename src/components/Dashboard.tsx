@@ -34,6 +34,7 @@ import { StrategyRegistry, type StrategySignalResult } from '../engine/strategyR
 import { PivotCalculator } from '../engine/pivotCalculator';
 import { WorkerStatusBanner } from './WorkerStatusBanner';
 import { isStrategyAuthorizedForSignals } from '../engine/multiStrategyBacktester';
+import { MarketHoursHelper } from '../engine/marketHours';
 
 export const Dashboard: React.FC = () => {
   const [selectedInstrument, setSelectedInstrument] = useState<'NIFTY 50' | 'BANK NIFTY'>('NIFTY 50');
@@ -164,15 +165,17 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Generate baseline closed 5m candles if broker connection pending
+  // Generate baseline closed 5m candles aligned with official NSE session hours (09:15 - 15:30 IST)
   const generateBaselineData = () => {
+    const sessionInfo = MarketHoursHelper.getSessionInfo();
     const basePrice = selectedInstrument === 'NIFTY 50' ? 24550 : 51850;
-    const nowSec = Math.floor(Date.now() / 1000);
     const mockCandles: MarketCandle[] = [];
 
-    // Create 16 closed 5m candles
-    for (let i = 16; i >= 1; i--) {
-      const time = nowSec - i * 300;
+    // Create 16 closed 5m candles counting back from the session close (15:30 IST) or current candle
+    const endTimestamp = sessionInfo.lastCandleTimestamp;
+
+    for (let i = 15; i >= 0; i--) {
+      const time = endTimestamp - i * 300;
       const variation = Math.sin(i * 0.8) * (selectedInstrument === 'NIFTY 50' ? 35 : 85);
       const open = basePrice + variation;
       const close = open + (i % 3 === 0 ? 22 : -18);
@@ -181,12 +184,17 @@ export const Dashboard: React.FC = () => {
 
       mockCandles.push({
         timestamp: time,
-        datetime: new Date(time * 1000).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        datetime: new Date(time * 1000).toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        }),
         open: Number(open.toFixed(2)),
         high: Number(high.toFixed(2)),
         low: Number(low.toFixed(2)),
         close: Number(close.toFixed(2)),
-        volume: 1500 + i * 80,
+        volume: 1500 + (16 - i) * 80,
         isClosed: true,
       });
     }
@@ -220,6 +228,17 @@ export const Dashboard: React.FC = () => {
       activeConditions: [],
       forceMarketHoursCheck: false,
     });
+
+    // If market is closed (after 3:30 PM), explicitly set closing session info
+    if (!sessionInfo.isOpen) {
+      evaluated.candleDateTimeIST = sessionInfo.formattedDateTimeIST;
+      evaluated.explanation.decision = `🔴 मार्केट बंद आहे (NSE Closed at 03:30 PM). आजचा 15:30 चा अंतिम क्लोजिंग डेटा दाखवला आहे. पुढील लाईव्ह सत्र उद्या सकाळी 09:15 वाजता सुरू होईल.`;
+      evaluated.explanation.reasons = [
+        'भारतीय शेअर मार्केट (NSE) दुपारी 03:30 वाजता बंद होते (Trading Hours: 09:15 - 15:30 IST).',
+        'सध्या दाखवलेला चार्ट आजच्या 15:30 क्लोजिंग सेशनचा अंतिम डेटा आहे.',
+        'पुढील नवीन लाईव्ह सिग्नल्स उद्या सकाळी 09:15 AM वाजता सुरू होतील.',
+      ];
+    }
 
     setCurrentSignal(evaluated);
 
@@ -264,9 +283,13 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] sm:text-xs px-2 py-1 bg-emerald-950/80 text-emerald-400 border border-emerald-800 rounded-lg font-mono font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              5M Interval
+            <span className={`text-[10px] sm:text-xs px-2.5 py-1 rounded-lg font-mono font-bold flex items-center gap-1.5 ${
+              MarketHoursHelper.getSessionInfo().isOpen
+                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
+                : 'bg-rose-950/80 text-rose-300 border border-rose-800'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${MarketHoursHelper.getSessionInfo().isOpen ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />
+              {MarketHoursHelper.getSessionInfo().isOpen ? '5M LIVE SESSION' : '🔴 MARKET CLOSED (3:30 PM Close)'}
             </span>
           </div>
         </div>
