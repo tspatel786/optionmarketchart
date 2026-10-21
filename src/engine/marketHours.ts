@@ -6,7 +6,7 @@
 export interface MarketSessionInfo {
   isOpen: boolean;
   statusLabel: string;
-  sessionClosingTimestamp: number; // Unix timestamp in seconds of 15:30:00 IST
+  sessionClosingTimestamp: number; // Unix timestamp in seconds representing 15:30:00 IST
   lastCandleTimestamp: number;      // Unix timestamp of the latest closed 5M candle
   formattedDateTimeIST: string;     // e.g. "03:30:00 pm (Market Close)"
   sessionDateIST: string;           // "YYYY-MM-DD"
@@ -73,13 +73,13 @@ export class MarketHoursHelper {
     const tDd = String(tradingDate.getDate()).padStart(2, '0');
     const sessionDateIST = `${tYyyy}-${tMm}-${tDd}`;
 
-    // 15:30:00 IST in UTC is 10:00:00 UTC (15:30 - 5:30 = 10:00)
+    // 15:30:00 IST Timestamp (displayed as 15:30 on TradingView chart)
     const sessionCloseEpochMs = Date.UTC(
       tradingDate.getFullYear(),
       tradingDate.getMonth(),
       tradingDate.getDate(),
-      10,
-      0,
+      15,
+      30,
       0
     );
     const sessionClosingTimestamp = Math.floor(sessionCloseEpochMs / 1000);
@@ -88,19 +88,24 @@ export class MarketHoursHelper {
     let formattedDateTimeIST: string;
 
     if (isOpen) {
-      // Current live candle rounded down to last completed 5-min closed candle
-      const nowSec = Math.floor(now.getTime() / 1000);
-      lastCandleTimestamp = nowSec - (nowSec % 300);
-      formattedDateTimeIST = new Date(lastCandleTimestamp * 1000).toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
+      // Current live candle in IST representation
+      const istMinutes = Math.floor(totalMinutes / 5) * 5;
+      const istHours = Math.floor(istMinutes / 60);
+      const istMins = istMinutes % 60;
+      const liveCandleMs = Date.UTC(
+        istDate.getFullYear(),
+        istDate.getMonth(),
+        istDate.getDate(),
+        istHours,
+        istMins,
+        0
+      );
+      lastCandleTimestamp = Math.floor(liveCandleMs / 1000);
+      formattedDateTimeIST = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} IST (Live 5M Session)`;
     } else {
-      // Market closed -> Last candle is the 15:25-15:30 close of the trading day
+      // Market closed -> Last candle is the 15:30 close of the trading day
       lastCandleTimestamp = sessionClosingTimestamp;
-      formattedDateTimeIST = '03:30:00 pm (मार्केट बंद / Market Close)';
+      formattedDateTimeIST = '03:30:00 pm (मार्केट बंद / 3:30 PM Close)';
     }
 
     let statusLabel = '🔴 मार्केट बंद आहे (NSE Closed at 3:30 PM)';

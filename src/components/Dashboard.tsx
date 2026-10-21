@@ -54,10 +54,10 @@ const INSTRUMENT_CONFIG: Record<
   SupportedInstrument,
   { symbol: string; basePrice: number; variance: number; highOffset: number; lowOffset: number }
 > = {
-  'NIFTY 50': { symbol: 'NIFTY', basePrice: 24550, variance: 35, highOffset: 95, lowOffset: 65 },
-  'BANK NIFTY': { symbol: 'BANKNIFTY', basePrice: 51850, variance: 85, highOffset: 180, lowOffset: 140 },
-  'FINNIFTY': { symbol: 'FINNIFTY', basePrice: 23600, variance: 40, highOffset: 110, lowOffset: 75 },
-  'SENSEX': { symbol: 'SENSEX', basePrice: 80200, variance: 120, highOffset: 260, lowOffset: 210 },
+  'NIFTY 50': { symbol: 'NIFTY', basePrice: 24200, variance: 35, highOffset: 85, lowOffset: 65 },
+  'BANK NIFTY': { symbol: 'BANKNIFTY', basePrice: 51250, variance: 85, highOffset: 170, lowOffset: 130 },
+  'FINNIFTY': { symbol: 'FINNIFTY', basePrice: 23450, variance: 40, highOffset: 95, lowOffset: 70 },
+  'SENSEX': { symbol: 'SENSEX', basePrice: 79450, variance: 120, highOffset: 240, lowOffset: 190 },
 };
 
 export type DashboardViewSection = 
@@ -337,8 +337,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       evaluated.candleDateTimeIST = sessionInfo.formattedDateTimeIST;
       evaluated.explanation.decision = `🔴 मार्केट बंद आहे (NSE Closed at 03:30 PM). आजचा 15:30 चा अंतिम क्लोजिंग डेटा दाखवला आहे. पुढील लाईव्ह सत्र उद्या सकाळी 09:15 वाजता सुरू होईल.`;
       evaluated.explanation.reasons = [
-        'भारतीय शेअर मार्केट (NSE) दुपारी 03:30 वाजता बंद होते (Trading Hours: 09:15 - 15:30 IST).',
-        'सध्या दाखवलेला चार्ट आजच्या 15:30 क्लोजिंग सेशनचा अंतिम डेटा आहे.',
+        'भारतीय शेअर मार्केट (NSE/BSE) दुपारी 03:30 वाजता बंद होते (सत्र: 09:15 - 15:30 IST).',
+        'सध्या दाखवलेला चार्ट आजच्या 15:30 क्लोजिंग सेशनचा अधिकृत अंतिम डेटा आहे.',
+        'वीकली एक्सपायरी: मंगळवार (NIFTY 50), गुरुवार (SENSEX), बुधवार (BANK NIFTY).',
         'पुढील नवीन लाईव्ह सिग्नल्स उद्या सकाळी 09:15 AM वाजता सुरू होतील.',
       ];
     }

@@ -2,11 +2,12 @@
  * Expiry Day "Hero or Zero" Setup Radar Engine
  * Identifies high-risk high-reward gamma squeeze momentum setups on weekly expiry afternoons.
  *
- * Weekly Expiry Calendar (India):
- * - Tuesday: FINNIFTY
- * - Wednesday: BANK NIFTY
- * - Thursday: NIFTY 50
- * - Friday: SENSEX
+ * Updated Weekly Expiry Calendar (SEBI & Indian Exchanges Rules):
+ * - Monday: MIDCPNIFTY
+ * - Tuesday: NIFTY 50 (मंगळवार)
+ * - Wednesday: BANK NIFTY (बुधवार)
+ * - Thursday: SENSEX (गुरूवार)
+ * - Friday: FINNIFTY (शुक्रवार)
  */
 
 export interface HeroZeroSetup {
@@ -37,11 +38,11 @@ export interface HeroZeroRadarResult {
 
 export class HeroZeroRadarEngine {
   public static readonly EXPIRY_DAYS: Record<number, string> = {
-    1: 'MIDCPNIFTY', // Monday
-    2: 'FINNIFTY',    // Tuesday
-    3: 'BANK NIFTY',  // Wednesday
-    4: 'NIFTY 50',    // Thursday
-    5: 'SENSEX',      // Friday
+    1: 'MIDCPNIFTY', // Monday (सोमवार)
+    2: 'NIFTY 50',   // Tuesday (मंगळवार - SEBI New Rules & User Specification)
+    3: 'BANK NIFTY', // Wednesday (बुधवार)
+    4: 'SENSEX',     // Thursday (गुरूवार - BSE Update & User Specification)
+    5: 'FINNIFTY',   // Friday (शुक्रवार)
   };
 
   public static readonly LOT_SIZES: Record<string, number> = {

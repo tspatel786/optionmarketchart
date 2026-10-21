@@ -20,15 +20,16 @@ describe('FII / DII Institutional Flow & Long-Short Radar', () => {
 });
 
 describe('Expiry Day Hero-Zero Setup Radar', () => {
-  it('should calculate accurate weekly expiry instruments', () => {
-    expect(HeroZeroRadarEngine.EXPIRY_DAYS[2]).toBe('FINNIFTY'); // Tuesday
-    expect(HeroZeroRadarEngine.EXPIRY_DAYS[3]).toBe('BANK NIFTY'); // Wednesday
-    expect(HeroZeroRadarEngine.EXPIRY_DAYS[4]).toBe('NIFTY 50'); // Thursday
-    expect(HeroZeroRadarEngine.EXPIRY_DAYS[5]).toBe('SENSEX'); // Friday
+  it('should calculate accurate weekly expiry instruments per user & SEBI rules', () => {
+    expect(HeroZeroRadarEngine.EXPIRY_DAYS[1]).toBe('MIDCPNIFTY'); // Monday
+    expect(HeroZeroRadarEngine.EXPIRY_DAYS[2]).toBe('NIFTY 50');    // Tuesday (मंगळवार)
+    expect(HeroZeroRadarEngine.EXPIRY_DAYS[3]).toBe('BANK NIFTY');  // Wednesday (बुधवार)
+    expect(HeroZeroRadarEngine.EXPIRY_DAYS[4]).toBe('SENSEX');      // Thursday (गुरूवार)
+    expect(HeroZeroRadarEngine.EXPIRY_DAYS[5]).toBe('FINNIFTY');    // Friday (शुक्रवार)
   });
 
   it('should generate CE and PE Hero-Zero setups with bounded risk', () => {
-    const radar = HeroZeroRadarEngine.evaluateRadar('NIFTY 50', 24530);
+    const radar = HeroZeroRadarEngine.evaluateRadar('NIFTY 50', 24200);
 
     expect(radar.setups.length).toBe(2);
     const ce = radar.setups.find((s) => s.optionType === 'CE');
@@ -55,9 +56,9 @@ describe('Expiry Day Hero-Zero Setup Radar', () => {
   });
 
   it('should correctly adapt strike steps for high-value indices (BankNifty/Sensex)', () => {
-    const bankRadar = HeroZeroRadarEngine.evaluateRadar('BANK NIFTY', 51850);
+    const bankRadar = HeroZeroRadarEngine.evaluateRadar('BANK NIFTY', 51250);
     const ce = bankRadar.setups.find((s) => s.optionType === 'CE');
     // Step should be 100
-    expect(ce?.strike).toBe(52000);
+    expect(ce?.strike).toBe(51400);
   });
 });

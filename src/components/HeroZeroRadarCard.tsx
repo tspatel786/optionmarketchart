@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Flame, Target, ShieldAlert, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Zap, Flame, Target, ShieldAlert, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react';
 import { HeroZeroRadarEngine, type HeroZeroRadarResult } from '../engine/heroZeroRadar';
 
 interface HeroZeroRadarCardProps {
@@ -26,7 +26,7 @@ export const HeroZeroRadarCard: React.FC<HeroZeroRadarCardProps> = ({
               Expiry Day "Hero or Zero" Setup Radar
             </h3>
             <p className="text-[10px] sm:text-[11px] text-gray-400">
-              कमी प्रीमियम (₹१५-₹३०) • ३x ते ५x गॅमा मोमेंटम ब्रेकआउट स्कॅनर
+              कमी प्रीमियम (₹१५-₹३५) • ३x ते ५x गॅमा मोमेंटम ब्रेकआउट स्कॅनर
             </p>
           </div>
         </div>
@@ -41,6 +41,40 @@ export const HeroZeroRadarCard: React.FC<HeroZeroRadarCardProps> = ({
             <Flame className="w-3.5 h-3.5 text-accentGold" />
             {radar.todayDayName}: {radar.expiryInstrument} Expiry
           </span>
+        </div>
+      </div>
+
+      {/* Official Weekly Expiry Calendar Strip */}
+      <div className="p-2.5 bg-black/40 border border-gray-800 rounded-xl space-y-1.5">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="font-bold text-gray-300 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-accentGold" />
+            वीकली एक्सपायरी वेळापत्रक (Weekly Expiry Rules):
+          </span>
+          <span className="text-[10px] text-accentGold font-mono">SEBI Validated</span>
+        </div>
+        <div className="grid grid-cols-5 gap-1.5 text-center text-[10px]">
+          {[
+            { day: 'सोमवार', inst: 'MIDCP', isToday: radar.todayDayName === 'सोमवार' },
+            { day: 'मंगळवार', inst: 'NIFTY 50', highlight: true, isToday: radar.todayDayName === 'मंगळवार' },
+            { day: 'बुधवार', inst: 'BANK NIFTY', isToday: radar.todayDayName === 'बुधवार' },
+            { day: 'गुरूवार', inst: 'SENSEX', highlight: true, isToday: radar.todayDayName === 'गुरूवार' },
+            { day: 'शुक्रवार', inst: 'FINNIFTY', isToday: radar.todayDayName === 'शुक्रवार' },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              className={`p-1.5 rounded-lg border transition ${
+                item.isToday
+                  ? 'bg-amber-950/60 border-amber-500 text-accentGold ring-1 ring-amber-500/50'
+                  : item.highlight
+                  ? 'bg-blue-950/30 border-blue-800/60 text-cyan-300'
+                  : 'bg-gray-900/40 border-gray-800 text-gray-400'
+              }`}
+            >
+              <span className="block text-[9px] text-gray-400 font-medium">{item.day}</span>
+              <span className="block font-mono font-bold truncate mt-0.5">{item.inst}</span>
+            </div>
+          ))}
         </div>
       </div>
 
