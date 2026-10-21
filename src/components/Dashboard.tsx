@@ -48,6 +48,11 @@ import { CprAnalysisCard } from './CprAnalysisCard';
 import { OptionChainAnalyticsCard } from './OptionChainAnalyticsCard';
 import { PositionSizingModal } from './PositionSizingModal';
 
+// Features 2, 4, 5: PWA Install, FII/DII Flow Radar, Expiry Day Hero-Zero Setup Radar
+import { PwaInstallButton } from './PwaInstallButton';
+import { FiiDiiCard } from './FiiDiiCard';
+import { HeroZeroRadarCard } from './HeroZeroRadarCard';
+
 export type SupportedInstrument = 'NIFTY 50' | 'BANK NIFTY' | 'FINNIFTY' | 'SENSEX';
 
 const INSTRUMENTS: SupportedInstrument[] = ['NIFTY 50', 'BANK NIFTY', 'FINNIFTY', 'SENSEX'];
@@ -417,6 +422,9 @@ export const Dashboard: React.FC = () => {
             <span className="text-[11px]">🧮 लॉट कॅल्क</span>
           </button>
 
+          {/* Feature 2: PWA Install Button */}
+          <PwaInstallButton />
+
           {/* Broker Status Pill */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-black/40 border border-gray-800 rounded-lg text-xs">
             <span className={`w-2 h-2 rounded-full ${angelOneClient.isConfigured() ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'}`} />
@@ -499,6 +507,15 @@ export const Dashboard: React.FC = () => {
             instrument={selectedInstrument}
           />
         )}
+      </div>
+
+      {/* Analytics Hub 2: Institutional Flow (FII/DII) & Expiry Day Hero-Zero Radar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <FiiDiiCard />
+        <HeroZeroRadarCard
+          instrument={selectedInstrument}
+          spotPrice={quote?.lastPrice || INSTRUMENT_CONFIG[selectedInstrument].basePrice}
+        />
       </div>
 
       {/* 38 Intraday Strategies Hub */}
