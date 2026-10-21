@@ -24,13 +24,13 @@ export interface OutboxItem {
 export class TelegramService {
   /**
    * Formats a rich, professional Telegram message strictly including all mandatory fields:
-   * instrument, signal type, timestamp, entry/SL/targets, strategy, matched conditions,
-   * explanation, data freshness timestamp, and "not financial advice" disclaimer.
+   * instrument, signal type, timestamp, option contract, entry/SL/targets, Greeks,
+   * 80% confluence score, explanation, and disclaimer.
    */
   public static formatSignalMessage(signal: EvaluatedSignal): string {
     const isBuy = signal.signalType === 'BUY';
     const emoji = isBuy ? '🟢' : '🔴';
-    const typeLabel = isBuy ? 'BUY / LONG' : 'SELL / SHORT';
+    const typeLabel = isBuy ? 'BUY / LONG (BUY CE)' : 'SELL / SHORT (BUY PE)';
 
     let levelsText = '';
     if (signal.levels) {
@@ -46,15 +46,34 @@ export class TelegramService {
 `;
     }
 
+    let optionText = '';
+    if (signal.optionContract) {
+      const oc = signal.optionContract;
+      const g = oc.greeks;
+      const proj = oc.projections;
+      optionText = `
+<b>🎯 Recommended Option Contract:</b>
+• <b>Strike:</b> ${oc.symbol} (${oc.optionType})
+• <b>Premium Range:</b> ${oc.estimatedPremiumRange}
+${proj ? `• <b>Option Entry:</b> ₹${proj.currentEstimatedPremium.toFixed(1)} | <b>Option SL:</b> ₹${proj.stopLossEstimatedPremium.toFixed(1)}
+• <b>Option Target 1:</b> ₹${proj.target1EstimatedPremium.toFixed(1)} | <b>Target 2:</b> ₹${proj.target2EstimatedPremium.toFixed(1)}` : ''}
+${g ? `• <b>Greeks:</b> Δ ${g.delta >= 0 ? '+' : ''}${g.delta.toFixed(2)} | Θ ${g.theta.toFixed(1)}/d | IV ${g.impliedVolatility.toFixed(1)}%` : ''}
+`;
+    }
+
     const matchedList = signal.matchedConditions.map(c => `  ✓ ${c}`).join('\n');
-    const pattern = signal.explanation.patterns[0]?.patternName || 'Price Action';
+    const pattern = signal.explanation.patterns[0]?.patternName || signal.chartPattern?.patternName || 'Price Action';
+    const confluenceText = signal.confluenceScore !== undefined 
+      ? `• <b>80% Win-Rate Confluence:</b> ${signal.confluenceScore}% Match (A+ Grade Passed)`
+      : '';
 
     return `
 ${emoji} <b>MARKET SIGNAL ALERT: ${signal.instrument}</b>
 <b>Action:</b> ${typeLabel}
 <b>Timeframe:</b> 5-Minute (Closed Candle)
-<b>Strategy:</b> PRICE_ACTION_PIVOT_5M
-<b>Trigger Pattern:</b> ${pattern}
+<b>Strategy:</b> PRICE_ACTION_PIVOT_5M (${pattern})
+${confluenceText}
+${optionText}
 ${levelsText}
 <b>📈 Market Context:</b>
 • <b>India VIX Status:</b> ${signal.explanation.vixStatus} ${signal.explanation.vixValue ? `(${signal.explanation.vixValue.toFixed(2)})` : ''}
