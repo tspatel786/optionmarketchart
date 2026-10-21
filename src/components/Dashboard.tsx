@@ -1,27 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart2, 
-  Key, 
   RefreshCw, 
   TrendingUp, 
   TrendingDown, 
-  Activity, 
   AlertTriangle, 
   Database,
-  ExternalLink,
-  ShieldCheck,
-  Play,
-  Target,
-  PauseCircle,
-  Cpu,
+  Target, 
+  PauseCircle, 
+  Volume2, 
+  VolumeX, 
+  Calculator, 
+  Compass,
   Layers,
-  Sparkles,
-  Zap,
-  Sliders,
-  Volume2,
-  VolumeX,
-  Calculator,
-  Compass
+  Landmark,
+  Zap
 } from 'lucide-react';
 import { TradingViewChart } from './TradingViewChart';
 import { LiveSignalCard } from './LiveSignalCard';
@@ -30,7 +23,7 @@ import { growwService, type MarketCandle, type LiveQuote } from '../services/gro
 import { activeMarketDataProvider } from '../services/marketDataProvider';
 import { angelOneClient } from '../services/angelOneApiClient';
 import { SignalEngine, type EvaluatedSignal } from '../engine/signalEngine';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 import { TelegramSettingsModal } from './TelegramSettingsModal';
 import { TelegramService, type TelegramConfig } from '../services/telegramService';
@@ -97,6 +90,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     if (initialSection) {
       setActiveSection(initialSection);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [initialSection]);
 
@@ -151,16 +145,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const handleSaveTelegramConfig = (cfg: TelegramConfig) => {
     setTelegramConfig(cfg);
     localStorage.setItem('TELEGRAM_CONFIG', JSON.stringify(cfg));
-  };
-
-  // Save Groww token fallback
-  const handleSaveToken = () => {
-    if (growwToken.trim().length > 5) {
-      growwService.setAccessToken(growwToken.trim());
-      setIsBrokerConnected(true);
-      setIsTokenModalOpen(false);
-      fetchLiveMarketData();
-    }
   };
 
   // Fetch Live Candles & Evaluate Signal
@@ -505,7 +489,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         ].map((sec) => (
           <button
             key={sec.id}
-            onClick={() => setActiveSection(sec.id as DashboardViewSection)}
+            onClick={() => {
+              setActiveSection(sec.id as DashboardViewSection);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition flex-shrink-0 text-xs flex items-center gap-1 ${
               activeSection === sec.id
                 ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/25 scale-105'
@@ -516,6 +503,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         ))}
       </div>
+
+      {/* Dedicated Section Indicator Banner & Quick Back Button */}
+      {activeSection !== 'ALL' && (
+        <div className="flex flex-wrap items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-blue-950/40 via-cyan-950/20 to-blue-950/40 border border-cyan-800/50 rounded-2xl shadow-xl gap-2 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="text-xs sm:text-sm font-bold text-white">
+              {activeSection === 'CHART' && '📈 लाईव्ह चार्ट व 5M सिग्नल टर्मिनल (Live Signals)'}
+              {activeSection === 'CPR' && '🎯 CPR Daily Predictor व Floor Pivots (R1-R3, S1-S3)'}
+              {activeSection === 'OPTION_CHAIN' && '📊 Option Chain & PCR Analysis (Max Pain & Barriers)'}
+              {activeSection === 'FII_DII' && '🏛️ FII & DII संस्थात्मक खरेदी-विक्री फ्लो व फ्यूचर्स रेशो'}
+              {activeSection === 'HERO_ZERO' && '⚡ एक्सपायरी "हिरो-झिरो" पॉवर अवर रडार (1:15 - 3:15 PM)'}
+              {activeSection === 'STRATEGIES' && '🎯 ३८ चार्ट पॅटर्न व प्राईस ॲक्शन स्ट्रॅटेजीज हब'}
+              {activeSection === 'HISTORY' && '📜 आजचे व मागील सिग्नल्स हिस्ट्री'}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setActiveSection('ALL');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 text-cyan-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 shadow-sm"
+          >
+            <span>← सर्व डॅशबोर्ड (Show All)</span>
+          </button>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="p-3 bg-red-950/70 border border-red-800 text-red-200 text-xs rounded-xl flex items-center gap-2">

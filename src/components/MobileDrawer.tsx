@@ -12,14 +12,10 @@ import {
   Target, 
   Calculator, 
   Send, 
-  Smartphone, 
   LogOut, 
   Clock, 
-  ShieldCheck, 
-  User,
-  Volume2,
-  VolumeX,
-  Sparkles,
+  Volume2, 
+  VolumeX, 
   ChevronRight
 } from 'lucide-react';
 import type { AppUser } from '../services/appAuthService';
@@ -55,6 +51,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   const handleItemClick = (action: () => void) => {
     action();
     onClose();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (

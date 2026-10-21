@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -8,13 +8,11 @@ import {
   Target, 
   Activity, 
   CheckCircle2, 
-  XCircle, 
   Clock,
   Layers,
-  Sparkles,
   Zap,
-  Percent,
-  Compass
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import type { EvaluatedSignal } from '../engine/signalEngine';
 import type { LiveQuote } from '../services/growwService';
@@ -34,9 +32,11 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
   advances,
   declines,
 }) => {
+  const [showExplanationDetails, setShowExplanationDetails] = useState<boolean>(false);
+
   if (!signal) {
     return (
-      <div className="bg-[#0d1424]/90 border border-gray-800 rounded-2xl p-6 sm:p-8 text-center text-gray-400 shadow-xl">
+      <div className="bg-[#0d1424]/90 border border-gray-800 rounded-2xl p-6 sm:p-8 text-center text-gray-400 shadow-xl h-full flex flex-col items-center justify-center min-h-[380px]">
         <Activity className="w-10 h-10 mx-auto mb-3 text-cyan-400 opacity-60 animate-pulse" />
         <p className="text-sm font-semibold text-gray-300">Awaiting market signal evaluation...</p>
         <p className="text-xs text-gray-500 mt-1">Analyzing closed 5m candles on NSE live feed</p>
@@ -66,29 +66,29 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
   const isRetestBounce = breakout?.classification === 'STRONG_RETEST_BOUNCE';
 
   return (
-    <div className="bg-[#0d1424]/90 border border-gray-800/90 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl shadow-black/80 space-y-4">
+    <div className="bg-[#0d1424]/90 border border-gray-800/90 rounded-2xl overflow-hidden shadow-2xl shadow-black/80 flex flex-col h-full">
       {/* Header Bar */}
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-gray-900/90 via-[#0d1424] to-gray-900/90 border-b border-gray-800 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-base sm:text-lg font-black tracking-wider text-white">
+      <div className="p-3 sm:p-3.5 bg-gradient-to-r from-gray-900/90 via-[#0d1424] to-gray-900/90 border-b border-gray-800 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm sm:text-base font-black tracking-wider text-white">
             {signal.instrument}
           </span>
-          <span className={`px-3 py-1 rounded-full text-xs font-black uppercase border tracking-wider flex items-center gap-1.5 shadow-md ${badgeColor}`}>
-            {isBuy && <TrendingUp className="w-3.5 h-3.5" />}
-            {isSell && <TrendingDown className="w-3.5 h-3.5" />}
-            {isWait && <PauseCircle className="w-3.5 h-3.5" />}
-            {isNoData && <AlertCircle className="w-3.5 h-3.5" />}
+          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase border tracking-wider flex items-center gap-1 shadow-md ${badgeColor}`}>
+            {isBuy && <TrendingUp className="w-3 h-3" />}
+            {isSell && <TrendingDown className="w-3 h-3" />}
+            {isWait && <PauseCircle className="w-3 h-3" />}
+            {isNoData && <AlertCircle className="w-3 h-3" />}
             {signal.signalType === 'BUY' ? 'BUY CE (CALL)' : signal.signalType === 'SELL' ? 'BUY PE (PUT)' : signal.signalType}
           </span>
         </div>
 
         {/* Live Spot Price */}
         {quote && (
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-lg sm:text-xl font-black font-mono text-white">
+          <div className="flex items-center gap-2">
+            <span className="text-base sm:text-lg font-black font-mono text-white">
               ₹{quote.lastPrice.toFixed(2)}
             </span>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded font-mono ${
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
               quote.dayChange >= 0 ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800' : 'bg-rose-950/80 text-rose-400 border border-rose-800'
             }`}>
               {quote.dayChange >= 0 ? '+' : ''}{quote.dayChange.toFixed(2)} ({quote.dayChangePerc.toFixed(2)}%)
@@ -97,34 +97,35 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
         )}
       </div>
 
-      <div className="p-4 sm:p-5 space-y-4">
-        {/* Chart Pattern & Breakout Quality Badge (Cheat Sheet Engine) */}
+      {/* Scrollable Card Body with height matched to chart */}
+      <div className="p-3 sm:p-3.5 space-y-2.5 overflow-y-auto max-h-[460px] custom-scrollbar flex-1">
+        {/* Chart Pattern & Breakout Quality Badge */}
         {(pattern || breakout) && (
-          <div className="p-3 bg-gradient-to-r from-blue-950/40 via-cyan-950/20 to-blue-950/40 border border-cyan-800/50 rounded-xl space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-1.5">
-              <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                Detected Pattern: <strong>{pattern?.patternName || 'Multi-Timeframe Structure'}</strong>
+          <div className="p-2 sm:p-2.5 bg-gradient-to-r from-blue-950/40 via-cyan-950/20 to-blue-950/40 border border-cyan-800/50 rounded-xl space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+                <Layers className="w-3 h-3 text-cyan-400" />
+                Pattern: <strong>{pattern?.patternName || 'Multi-Timeframe Structure'}</strong>
               </span>
               {isRetestBounce ? (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-0.5">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
                   RETEST BOUNCE (92% Edge)
                 </span>
               ) : isStrongBreakout ? (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-emerald-400" />
-                  STRONG BREAKOUT ({breakout.penetrationPct.toFixed(0)}% Penetration)
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-0.5">
+                  <Zap className="w-2.5 h-2.5 text-emerald-400" />
+                  BREAKOUT ({breakout.penetrationPct.toFixed(0)}%)
                 </span>
               ) : (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
                   {breakout?.recommendation || 'AWAITING RETEST'}
                 </span>
               )}
             </div>
             {pattern && (
-              <p className="text-[11px] text-gray-300">
-                15M Neckline: <strong className="text-white font-mono">₹{pattern.necklinePrice.toFixed(2)}</strong> • Height: <strong className="text-white font-mono">{pattern.patternHeight.toFixed(2)} pts</strong>
+              <p className="text-[10px] text-gray-300 font-mono">
+                Neckline: <strong className="text-white">₹{pattern.necklinePrice.toFixed(1)}</strong> • Height: <strong className="text-white">{pattern.patternHeight.toFixed(1)} pts</strong>
               </p>
             )}
           </div>
@@ -132,16 +133,16 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
 
         {/* Option Contract & Black-Scholes Greeks Widget */}
         {signal.optionContract && (
-          <div className="p-3.5 bg-gradient-to-b from-[#11192e] to-[#0a101f] border border-cyan-800/40 rounded-xl space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-gray-800">
-              <div className="flex items-center gap-2">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-b from-[#11192e] to-[#0a101f] border border-cyan-800/40 rounded-xl space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 border-b border-gray-800">
+              <div className="flex items-center gap-1.5">
                 <span className="p-1 bg-cyan-500/20 text-cyan-400 rounded-md">
-                  <Target className="w-3.5 h-3.5" />
+                  <Target className="w-3 h-3" />
                 </span>
                 <span className="text-xs font-black text-white tracking-wide">
                   {signal.optionContract.symbol}
                 </span>
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded font-mono ${
+                <span className={`text-[9px] font-black px-1.5 py-0.2 rounded font-mono ${
                   signal.optionContract.optionType === 'CE'
                     ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
                     : 'bg-rose-950 text-rose-400 border border-rose-800'
@@ -149,36 +150,36 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
                   {signal.optionContract.optionType} STRIKE
                 </span>
               </div>
-              <span className="text-[11px] text-gray-400 font-medium">
+              <span className="text-[10px] text-gray-400 font-mono">
                 {signal.optionContract.estimatedPremiumRange}
               </span>
             </div>
 
-            {/* Greeks Grid */}
+            {/* Greeks Grid (Correct IV Display) */}
             {greeks && (
-              <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
-                <div className="p-1.5 bg-black/40 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block font-medium">Delta (Δ)</span>
-                  <span className="text-xs font-mono font-bold text-cyan-300 block">
+              <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                <div className="p-1 bg-black/40 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Delta (Δ)</span>
+                  <span className="text-[11px] font-mono font-bold text-cyan-300 block">
                     {greeks.delta >= 0 ? '+' : ''}{greeks.delta.toFixed(2)}
                   </span>
                 </div>
-                <div className="p-1.5 bg-black/40 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block font-medium">Gamma (Γ)</span>
-                  <span className="text-xs font-mono font-bold text-indigo-300 block">
+                <div className="p-1 bg-black/40 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Gamma (Γ)</span>
+                  <span className="text-[11px] font-mono font-bold text-indigo-300 block">
                     {greeks.gamma.toFixed(4)}
                   </span>
                 </div>
-                <div className="p-1.5 bg-black/40 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block font-medium">Theta (Θ)</span>
-                  <span className="text-xs font-mono font-bold text-rose-400 block">
-                    {greeks.theta.toFixed(1)}/day
+                <div className="p-1 bg-black/40 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Theta (Θ)</span>
+                  <span className="text-[11px] font-mono font-bold text-rose-400 block">
+                    {greeks.theta.toFixed(1)}/d
                   </span>
                 </div>
-                <div className="p-1.5 bg-black/40 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block font-medium">IV</span>
-                  <span className="text-xs font-mono font-bold text-amber-300 block">
-                    {(greeks.impliedVolatility * 100).toFixed(1)}%
+                <div className="p-1 bg-black/40 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">IV</span>
+                  <span className="text-[11px] font-mono font-bold text-amber-300 block">
+                    {greeks.impliedVolatility.toFixed(1)}%
                   </span>
                 </div>
               </div>
@@ -186,28 +187,28 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
 
             {/* Greeks-Adjusted Option Premium Targets */}
             {projections && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs pt-1">
-                <div className="p-2 bg-black/50 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block">Option Entry</span>
-                  <span className="text-xs sm:text-sm font-mono font-black text-cyan-300 block">
+              <div className="grid grid-cols-4 gap-1 text-center text-xs pt-0.5">
+                <div className="p-1.5 bg-black/50 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Opt Entry</span>
+                  <span className="text-xs font-mono font-black text-cyan-300 block">
                     ₹{projections.currentEstimatedPremium.toFixed(1)}
                   </span>
                 </div>
-                <div className="p-2 bg-black/50 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block">Option SL</span>
-                  <span className="text-xs sm:text-sm font-mono font-black text-rose-400 block">
+                <div className="p-1.5 bg-black/50 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Opt SL</span>
+                  <span className="text-xs font-mono font-black text-rose-400 block">
                     ₹{projections.stopLossEstimatedPremium.toFixed(1)}
                   </span>
                 </div>
-                <div className="p-2 bg-black/50 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block">Option T1</span>
-                  <span className="text-xs sm:text-sm font-mono font-black text-emerald-400 block">
+                <div className="p-1.5 bg-black/50 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Opt T1</span>
+                  <span className="text-xs font-mono font-black text-emerald-400 block">
                     ₹{projections.target1EstimatedPremium.toFixed(1)}
                   </span>
                 </div>
-                <div className="p-2 bg-black/50 rounded-lg border border-gray-800">
-                  <span className="text-[9px] text-gray-400 block">Option T2</span>
-                  <span className="text-xs sm:text-sm font-mono font-black text-green-300 block">
+                <div className="p-1.5 bg-black/50 rounded-lg border border-gray-800">
+                  <span className="text-[9px] text-gray-400 block">Opt T2</span>
+                  <span className="text-xs font-mono font-black text-green-300 block">
                     ₹{projections.target2EstimatedPremium.toFixed(1)}
                   </span>
                 </div>
@@ -217,13 +218,13 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
         )}
 
         {/* 80% Win Rate Confluence Meter */}
-        <div className="p-3.5 bg-black/40 border border-gray-800/80 rounded-xl space-y-2">
+        <div className="p-2.5 bg-black/40 border border-gray-800/80 rounded-xl space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-gray-300 flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-accentGold" />
+            <span className="font-bold text-gray-300 flex items-center gap-1.5 text-[11px]">
+              <ShieldAlert className="w-3.5 h-3.5 text-accentGold" />
               80% Win Rate Confluence Filter
             </span>
-            <span className={`px-2.5 py-0.5 rounded-full font-mono font-black text-xs ${
+            <span className={`px-2 py-0.5 rounded-full font-mono font-black text-[10px] ${
               (signal.confluenceScore || 0) >= 80
                 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
                 : 'bg-amber-950 text-amber-300 border border-amber-800'
@@ -232,10 +233,9 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
             </span>
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full bg-gray-900 rounded-full h-2.5 overflow-hidden border border-gray-800">
+          <div className="w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-gray-800">
             <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${
+              className={`h-2 rounded-full transition-all duration-500 ${
                 (signal.confluenceScore || 0) >= 80
                   ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400'
                   : 'bg-gradient-to-r from-amber-500 to-yellow-400'
@@ -244,7 +244,7 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
             />
           </div>
 
-          <div className="flex items-center justify-between text-[10px] text-gray-400 font-mono">
+          <div className="flex items-center justify-between text-[9px] text-gray-400 font-mono">
             <span>0%</span>
             <span className="font-bold text-cyan-400">80% A+ Threshold</span>
             <span>100%</span>
@@ -253,105 +253,128 @@ export const LiveSignalCard: React.FC<LiveSignalCardProps> = ({
 
         {/* Recommended Spot Price Levels Box */}
         {signal.levels && (isBuy || isSell) && (
-          <div className="p-3.5 bg-black/40 border border-gray-800 rounded-xl space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between text-xs font-semibold text-gray-300 gap-1.5 pb-2 border-b border-gray-800">
+          <div className="p-2.5 bg-black/40 border border-gray-800 rounded-xl space-y-1.5">
+            <div className="flex flex-wrap items-center justify-between text-[11px] font-semibold text-gray-300 gap-1 pb-1 border-b border-gray-800">
               <span className="flex items-center gap-1 text-cyan-400">
-                <Target className="w-3.5 h-3.5" /> Spot Price Levels (5M Closed)
+                <Target className="w-3 h-3" /> Spot Levels (5M Closed)
               </span>
-              <span className="font-mono text-cyan-300">
+              <span className="font-mono text-cyan-300 text-[10px]">
                 R:R = 1:{signal.levels.riskRewardRatio}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-              <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-                <span className="text-[9px] text-gray-400 block font-medium">Entry</span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-cyan-300 block">
-                  ₹{signal.levels.entryPrice.toFixed(2)}
+            <div className="grid grid-cols-5 gap-1 text-center">
+              <div className="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
+                <span className="text-[8px] text-gray-400 block">Entry</span>
+                <span className="text-[11px] font-bold font-mono text-cyan-300 block truncate">
+                  ₹{signal.levels.entryPrice.toFixed(0)}
                 </span>
               </div>
 
-              <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-                <span className="text-[9px] text-gray-400 block font-medium">Stop Loss</span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-rose-400 block">
-                  ₹{signal.levels.stopLoss.toFixed(2)}
+              <div className="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
+                <span className="text-[8px] text-gray-400 block">Stop Loss</span>
+                <span className="text-[11px] font-bold font-mono text-rose-400 block truncate">
+                  ₹{signal.levels.stopLoss.toFixed(0)}
                 </span>
               </div>
 
-              <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-                <span className="text-[9px] text-gray-400 block font-medium">Target 1</span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-emerald-400 block">
-                  ₹{signal.levels.target1.toFixed(2)}
+              <div className="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
+                <span className="text-[8px] text-gray-400 block">Target 1</span>
+                <span className="text-[11px] font-bold font-mono text-emerald-400 block truncate">
+                  ₹{signal.levels.target1.toFixed(0)}
                 </span>
               </div>
 
-              <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-                <span className="text-[9px] text-gray-400 block font-medium">Target 2</span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-green-300 block">
-                  ₹{signal.levels.target2.toFixed(2)}
+              <div className="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
+                <span className="text-[8px] text-gray-400 block">Target 2</span>
+                <span className="text-[11px] font-bold font-mono text-green-300 block truncate">
+                  ₹{signal.levels.target2.toFixed(0)}
                 </span>
               </div>
 
-              <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800 col-span-2 sm:col-span-1">
-                <span className="text-[9px] text-gray-400 block font-medium">Pivot</span>
-                <span className="text-xs sm:text-sm font-bold font-mono text-amber-300 block">
-                  ₹{signal.levels.pivot.toFixed(2)}
+              <div className="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
+                <span className="text-[8px] text-gray-400 block">Pivot</span>
+                <span className="text-[11px] font-bold font-mono text-amber-300 block truncate">
+                  ₹{signal.levels.pivot.toFixed(0)}
                 </span>
               </div>
             </div>
 
-            <div className="text-[10px] sm:text-[11px] text-gray-400">
-              <strong>Invalidation:</strong> {signal.levels.invalidation}
+            <div className="text-[10px] text-gray-400 leading-tight">
+              <strong className="text-gray-300">Invalidation:</strong> {signal.levels.invalidation}
             </div>
           </div>
         )}
 
         {/* Market Context (VIX, Breadth, Candle Time) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-          <div className="bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 flex items-center justify-between">
-            <div>
-              <span className="text-gray-400 text-[10px] block">India VIX</span>
-              <span className="font-bold font-mono text-white text-xs">
-                {vix !== undefined && vix !== null ? vix.toFixed(2) : '12.80'}
+        <div className="grid grid-cols-3 gap-1.5 text-xs">
+          <div className="bg-gray-900/60 p-1.5 rounded-lg border border-gray-800 flex flex-col justify-between">
+            <span className="text-gray-400 text-[9px]">India VIX</span>
+            <div className="flex items-center justify-between mt-0.5">
+              <span className="font-bold font-mono text-white text-[11px]">
+                {vix !== undefined && vix !== null ? vix.toFixed(2) : '13.20'}
+              </span>
+              <span className="text-[8px] font-bold px-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                {signal.explanation.vixStatus}
               </span>
             </div>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-              {signal.explanation.vixStatus}
-            </span>
           </div>
 
-          <div className="bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 flex items-center justify-between">
-            <div>
-              <span className="text-gray-400 text-[10px] block">NSE Breadth</span>
-              <span className="font-bold font-mono text-white text-xs">
-                {advances || 1450} / {declines || 820}
+          <div className="bg-gray-900/60 p-1.5 rounded-lg border border-gray-800 flex flex-col justify-between">
+            <span className="text-gray-400 text-[9px]">NSE Breadth</span>
+            <div className="flex items-center justify-between mt-0.5">
+              <span className="font-bold font-mono text-white text-[11px]">
+                {advances || 1420}/{declines || 850}
+              </span>
+              <span className="text-[8px] font-bold px-1 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+                {(advances || 1420) > (declines || 850) ? 'BULL' : 'BEAR'}
               </span>
             </div>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
-              {(advances || 1450) > (declines || 820) ? 'BULLISH' : 'BEARISH'}
-            </span>
           </div>
 
-          <div className="bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 flex items-center justify-between">
-            <div>
-              <span className="text-gray-400 text-[10px] block">5M Candle IST</span>
-              <span className="font-mono text-gray-200 text-xs">
-                {signal.candleDateTimeIST}
+          <div className="bg-gray-900/60 p-1.5 rounded-lg border border-gray-800 flex flex-col justify-between">
+            <span className="text-gray-400 text-[9px]">5M Candle</span>
+            <div className="flex items-center justify-between mt-0.5">
+              <span className="font-mono text-gray-200 text-[11px] truncate">
+                {signal.candleDateTimeIST || '15:30 IST'}
               </span>
+              <Clock className="w-3 h-3 text-cyan-400 flex-shrink-0" />
             </div>
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
           </div>
         </div>
 
-        {/* Engine Explanation */}
-        <div className="bg-black/30 border border-gray-800 rounded-lg p-3 text-xs space-y-1.5">
-          <span className="font-semibold text-gray-300 block">Engine Decision & Logic:</span>
-          <p className="text-gray-200">{signal.explanation.decision}</p>
-          <ul className="list-disc list-inside text-gray-400 space-y-0.5 text-[11px]">
-            {signal.explanation.reasons.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
+        {/* Engine Explanation Accordion */}
+        <div className="bg-black/30 border border-gray-800 rounded-lg p-2 text-xs space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-gray-300 text-[11px]">लॉजिक व निर्णय:</span>
+            <button
+              onClick={() => setShowExplanationDetails(prev => !prev)}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-0.5 underline transition"
+            >
+              {showExplanationDetails ? (
+                <>
+                  <span>कमी करा</span>
+                  <ChevronUp className="w-3 h-3" />
+                </>
+              ) : (
+                <>
+                  <span>सविस्तर कारणे</span>
+                  <ChevronDown className="w-3 h-3" />
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-gray-200 text-[11px] leading-tight line-clamp-2">
+            {signal.explanation.decision}
+          </p>
+
+          {showExplanationDetails && (
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5 text-[10px] pt-1 border-t border-gray-800/80 animate-fadeIn">
+              {signal.explanation.reasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

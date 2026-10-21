@@ -6,16 +6,13 @@ import {
   AlertCircle,
   BarChart3, 
   LogOut, 
-  User, 
   Clock, 
-  Radio, 
-  Sparkles, 
-  Shield, 
   Layers,
   Menu,
   Compass,
   Landmark,
   Zap,
+  Target,
   Calculator
 } from 'lucide-react';
 import { RuleManagement } from './components/RuleManagement';
@@ -67,6 +64,12 @@ export const App: React.FC = () => {
     setIsAuthenticated(false);
   };
 
+  const navigateTo = (tab: 'dashboard' | 'paper_trading' | 'rules' | 'backtest', section: DashboardViewSection = 'ALL') => {
+    setActiveTab(tab);
+    setDashboardSection(section);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // If not logged in, render the Login Page
   if (!isAuthenticated) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
@@ -76,7 +79,7 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#070a12] text-gray-100 flex flex-col font-sans select-none antialiased">
       {/* Top Application Header */}
       <header className="border-b border-gray-800/80 bg-[#0d1424]/90 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-3">
           {/* Brand Identity & Mobile Hamburger Menu */}
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             {/* Mobile Menu Trigger Button (☰ Hamburger) */}
@@ -89,51 +92,50 @@ export const App: React.FC = () => {
               <Menu className="w-5 h-5 text-cyan-400" />
             </button>
 
-            <div className="p-2 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl text-white shadow-md shadow-blue-500/20 flex-shrink-0">
-              <Activity className="w-5 h-5 animate-pulse" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-sm sm:text-base font-black tracking-wider text-white truncate">
-                  ALGO QUANTUM
-                </h1>
-                <span className="text-[9px] font-mono uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-bold hidden sm:inline-flex items-center gap-1">
-                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
-                  80% Confluence
-                </span>
-                <span className="text-[9px] font-mono uppercase bg-cyan-950/80 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">
-                  v2.5
-                </span>
+            <div 
+              onClick={() => navigateTo('dashboard', 'ALL')}
+              className="cursor-pointer flex items-center gap-2"
+            >
+              <div className="p-2 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl text-white shadow-md shadow-blue-500/20 flex-shrink-0">
+                <Activity className="w-5 h-5 animate-pulse" />
               </div>
-              <p className="text-[10px] text-gray-400 truncate hidden md:block">
-                NIFTY • BANK NIFTY • FINNIFTY • SENSEX Terminal
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h1 className="text-sm sm:text-base font-black tracking-wider text-white truncate">
+                    ALGO QUANTUM
+                  </h1>
+                  <span className="text-[9px] font-mono uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-bold hidden sm:inline-flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
+                    80% Confluence
+                  </span>
+                  <span className="text-[9px] font-mono uppercase bg-cyan-950/80 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">
+                    v2.5
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 truncate hidden md:block">
+                  NIFTY • BANK NIFTY • FINNIFTY • SENSEX Terminal
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Desktop & Tablet Navigation */}
-          <nav className="hidden sm:flex items-center gap-1 bg-black/40 p-1 border border-gray-800/80 rounded-xl">
+          {/* Desktop & Tablet Navigation Bar (Full Feature Access) */}
+          <nav className="hidden sm:flex items-center gap-1 bg-black/40 p-1 border border-gray-800/80 rounded-xl overflow-x-auto no-scrollbar max-w-2xl">
             <button
-              onClick={() => {
-                setActiveTab('dashboard');
-                setDashboardSection('ALL');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              onClick={() => navigateTo('dashboard', 'ALL')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 activeTab === 'dashboard' && dashboardSection === 'ALL'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              Live Signals
+              Signals
             </button>
 
             <button
-              onClick={() => {
-                setActiveTab('dashboard');
-                setDashboardSection('CPR');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              onClick={() => navigateTo('dashboard', 'CPR')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 activeTab === 'dashboard' && dashboardSection === 'CPR'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
@@ -144,11 +146,20 @@ export const App: React.FC = () => {
             </button>
 
             <button
-              onClick={() => {
-                setActiveTab('dashboard');
-                setDashboardSection('FII_DII');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              onClick={() => navigateTo('dashboard', 'OPTION_CHAIN')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                activeTab === 'dashboard' && dashboardSection === 'OPTION_CHAIN'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Option Chain
+            </button>
+
+            <button
+              onClick={() => navigateTo('dashboard', 'FII_DII')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 activeTab === 'dashboard' && dashboardSection === 'FII_DII'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
@@ -159,8 +170,32 @@ export const App: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('paper_trading')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              onClick={() => navigateTo('dashboard', 'HERO_ZERO')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                activeTab === 'dashboard' && dashboardSection === 'HERO_ZERO'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-accentGold" />
+              Hero-Zero
+            </button>
+
+            <button
+              onClick={() => navigateTo('dashboard', 'STRATEGIES')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                activeTab === 'dashboard' && dashboardSection === 'STRATEGIES'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              38 Strats
+            </button>
+
+            <button
+              onClick={() => navigateTo('paper_trading')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 activeTab === 'paper_trading'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
@@ -171,8 +206,8 @@ export const App: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('rules')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              onClick={() => navigateTo('rules')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 activeTab === 'rules'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
@@ -183,28 +218,41 @@ export const App: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('backtest')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              onClick={() => navigateTo('backtest')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 activeTab === 'backtest'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5" />
-              Backtesting
+              Backtest
             </button>
           </nav>
 
           {/* Right Toolbar: Live Clock, User Pill & Logout */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+            {/* Quick Lot Calculator Header Trigger */}
+            <button
+              onClick={() => {
+                setActiveTab('dashboard');
+                setIsRiskModalOpen(true);
+              }}
+              className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 bg-amber-950/30 hover:bg-amber-900/40 border border-amber-800/60 text-accentGold rounded-lg text-xs font-bold transition active:scale-95"
+              title="Open Position Sizing Calculator"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>लॉट कॅल्क</span>
+            </button>
+
             {/* Live IST Clock */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-black/40 border border-gray-800 rounded-lg text-xs font-mono text-cyan-300">
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-black/40 border border-gray-800 rounded-lg text-xs font-mono text-cyan-300">
               <Clock className="w-3.5 h-3.5 text-cyan-400" />
               <span>{currentTimeIST || 'IST'}</span>
             </div>
 
             {/* User Profile Pill */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-900/80 border border-gray-800 rounded-lg text-xs">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-lg text-xs">
               <div className="w-5 h-5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white uppercase">
                 {currentUser?.username?.[0] || 'T'}
               </div>
@@ -289,11 +337,8 @@ export const App: React.FC = () => {
       {/* Modern Mobile Bottom Navigation Bar (Fixed for Smartphones) */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0d1424]/95 backdrop-blur-xl border-t border-gray-800/80 px-2 py-1.5 flex items-center justify-around shadow-2xl shadow-black">
         <button
-          onClick={() => {
-            setActiveTab('dashboard');
-            setDashboardSection('ALL');
-          }}
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition ${
+          onClick={() => navigateTo('dashboard', 'ALL')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
             activeTab === 'dashboard' && dashboardSection === 'ALL'
               ? 'text-cyan-400 font-bold scale-105'
               : 'text-gray-400 hover:text-gray-200'
@@ -304,38 +349,32 @@ export const App: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('dashboard');
-            setDashboardSection('CPR');
-          }}
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition ${
+          onClick={() => navigateTo('dashboard', 'CPR')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
             activeTab === 'dashboard' && dashboardSection === 'CPR'
               ? 'text-cyan-400 font-bold scale-105'
               : 'text-gray-400 hover:text-gray-200'
           }`}
         >
           <Compass className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px]">CPR / PCR</span>
+          <span className="text-[10px]">CPR</span>
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('dashboard');
-            setDashboardSection('FII_DII');
-          }}
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition ${
+          onClick={() => navigateTo('dashboard', 'FII_DII')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
             activeTab === 'dashboard' && dashboardSection === 'FII_DII'
               ? 'text-cyan-400 font-bold scale-105'
               : 'text-gray-400 hover:text-gray-200'
           }`}
         >
           <Landmark className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px]">FII / DII</span>
+          <span className="text-[10px]">FII/DII</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('paper_trading')}
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition ${
+          onClick={() => navigateTo('paper_trading')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
             activeTab === 'paper_trading'
               ? 'text-cyan-400 font-bold scale-105'
               : 'text-gray-400 hover:text-gray-200'
@@ -347,7 +386,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setIsMobileDrawerOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-amber-400 font-bold transition hover:text-accentGold active:scale-95"
+          className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-amber-400 font-bold transition hover:text-accentGold active:scale-95"
         >
           <Menu className="w-5 h-5 mb-0.5" />
           <span className="text-[10px]">Menu ☰</span>
@@ -362,17 +401,14 @@ export const App: React.FC = () => {
         currentTimeIST={currentTimeIST}
         activeTab={activeTab}
         onSelectTab={(tab, section) => {
-          setActiveTab(tab as any);
-          if (section) {
-            setDashboardSection(section as any);
-          }
+          navigateTo(tab as any, (section as any) || 'ALL');
         }}
         onOpenRiskCalc={() => {
-          setActiveTab('dashboard');
+          navigateTo('dashboard', 'ALL');
           setIsRiskModalOpen(true);
         }}
         onOpenTelegramModal={() => {
-          setActiveTab('dashboard');
+          navigateTo('dashboard', 'ALL');
         }}
         onLogout={handleLogout}
       />
