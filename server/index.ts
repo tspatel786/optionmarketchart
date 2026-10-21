@@ -156,14 +156,29 @@ const server = http.createServer(async (req, res) => {
     if (!err && stats.isFile()) {
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      if (ext === '.html') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (pathname.startsWith('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
       res.writeHead(200, { 'Content-Type': contentType });
       fs.createReadStream(filePath).pipe(res);
     } else {
+      // If requesting a missing asset (.js, .css, etc.), return 404 instead of index.html
+      if (path.extname(pathname) || pathname.startsWith('/assets/')) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end(`Asset not found: ${pathname}`);
+        return;
+      }
+
       // Fallback to index.html for SPA (Single Page Application) routing
       const indexPath = path.join(distDir, 'index.html');
       fs.stat(indexPath, (indexErr, indexStats) => {
         if (!indexErr && indexStats.isFile()) {
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.writeHead(200, { 
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          });
           fs.createReadStream(indexPath).pipe(res);
         } else {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
