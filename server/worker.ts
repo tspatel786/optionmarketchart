@@ -2,7 +2,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 dotenv.config({ path: '.env.local' });
 
-import { GrowwApiService, type MarketCandle } from '../src/services/growwService';
+import { GrowwApiClient, GrowwApiError, sanitizeSecret, type MarketCandle } from '../src/services/growwApiClient';
+import { GrowwApiService } from '../src/services/growwService';
+import { angelOneClient, AngelOneApiError, maskAngelSecret } from '../src/services/angelOneApiClient';
+import { activeMarketDataProvider } from '../src/services/marketDataProvider';
 import { SignalEngine, type EvaluatedSignal } from '../src/engine/signalEngine';
 import { TelegramService } from '../src/services/telegramService';
 import { PaperTradingEngine, type PaperTradeRecord } from '../src/engine/paperTradingEngine';
@@ -13,10 +16,21 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL ||
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 const telegramBotToken = process.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
 const telegramChatId = process.env.VITE_TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_ID || '';
-const growwApiToken = process.env.GROWW_API_TOKEN || process.env.VITE_GROWW_API_TOKEN || '';
+
+// Groww Credentials
+const growwApiKey = process.env.GROWW_API_KEY || '';
+const growwApiSecret = process.env.GROWW_API_SECRET || '';
+const growwAccessToken = process.env.GROWW_ACCESS_TOKEN || process.env.GROWW_API_TOKEN || process.env.VITE_GROWW_API_TOKEN || '';
 
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
-const groww = new GrowwApiService(growwApiToken);
+
+export const growwClient = new GrowwApiClient({
+  apiKey: growwApiKey,
+  apiSecret: growwApiSecret,
+  accessToken: growwAccessToken,
+});
+
+const groww = new GrowwApiService(growwClient);
 
 export interface WorkerStatusReport {
   workerId: string;
@@ -26,6 +40,7 @@ export interface WorkerStatusReport {
   lastCandleIST?: string;
   currentRegime: string;
   activeInstrument: string;
+  activeProvider: string;
   brokerStatus: string;
   databaseStatus: string;
   telegramStatus: string;
@@ -61,14 +76,46 @@ export class AutonomousBackgroundWorker {
     console.log(`[Worker] Autonomous Background Worker started. Worker ID: ${this.workerId}`);
     console.log(`[Worker] Supabase: ${supabase ? 'Configured' : 'NOT CONFIGURED'}`);
     console.log(`[Worker] Telegram: ${telegramBotToken && telegramChatId ? 'Configured' : 'NOT CONFIGURED'}`);
-    console.log(`[Worker] Groww API: ${growwApiToken ? 'Token Provided' : 'NO TOKEN (Check GROWW_API_TOKEN)'}`);
+
+    const angelConfigured = angelOneClient.isConfigured();
+    const growwConfigured = groww.isConfigured();
+    const providerName = activeMarketDataProvider.name;
+
+    const authMethod = angelConfigured
+      ? `Angel One SmartAPI (Key: ${maskAngelSecret(process.env.ANGEL_ONE_API_KEY)}, Client: ${maskAngelSecret(process.env.ANGEL_ONE_CLIENT_CODE)})`
+      : (growwApiKey && growwApiSecret
+        ? `Groww API Key + Secret (Key: ${sanitizeSecret(growwApiKey)})`
+        : (growwAccessToken ? 'Groww Direct Access Token' : 'NO BROKER CREDENTIALS CONFIGURED'));
+    console.log(`[Worker] Market Data Provider: ${providerName} | Auth: ${authMethod}`);
+
+    // State recovery: Fetch last evaluated candle timestamps from Supabase
+    if (supabase) {
+      try {
+        const { data: recentSignals } = await supabase
+          .from('market_signals')
+          .select('instrument, candle_timestamp')
+          .order('candle_timestamp', { ascending: false })
+          .limit(20);
+        if (recentSignals && recentSignals.length > 0) {
+          for (const sig of recentSignals) {
+            const candleEpoch = Math.floor(new Date(sig.candle_timestamp).getTime() / 1000);
+            if (!this.lastEvaluatedCandleTime[sig.instrument] || candleEpoch > this.lastEvaluatedCandleTime[sig.instrument]) {
+              this.lastEvaluatedCandleTime[sig.instrument] = candleEpoch;
+            }
+          }
+          console.log('[Worker] Recovered last evaluated candle timestamps from database:', this.lastEvaluatedCandleTime);
+        }
+      } catch (err) {
+        console.warn('[Worker] Warning recovering state from Supabase:', err);
+      }
+    }
 
     // Send worker startup alert if Telegram is configured
     if (telegramBotToken && telegramChatId) {
       await TelegramService.sendSystemAlert(
         telegramBotToken,
         telegramChatId,
-        `🚀 <b>Autonomous Market Signal Worker Online</b>\nWorker ID: <code>${this.workerId}</code>\nNode Environment: ${process.env.NODE_ENV || 'production'}\nStarted: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`
+        `🚀 <b>Autonomous Market Signal Worker Online</b>\nWorker ID: <code>${this.workerId}</code>\nProvider: <b>${providerName}</b>\nAuth: ${authMethod}\nStarted: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`
       ).catch(() => {});
     }
 
@@ -105,7 +152,7 @@ export class AutonomousBackgroundWorker {
   /**
    * Get live status report for /healthz and /api/status endpoints
    */
-  public getStatusReport(): WorkerStatusReport {
+  public getStatusReport(): WorkerStatusReport & { growwTokenStatus: any; angelOneStatus: any } {
     const memory = process.memoryUsage();
     return {
       workerId: this.workerId,
@@ -115,7 +162,10 @@ export class AutonomousBackgroundWorker {
       lastCandleIST: this.latestSignals['NIFTY 50']?.candleDateTimeIST,
       currentRegime: this.currentRegime,
       activeInstrument: 'NIFTY 50, BANK NIFTY',
+      activeProvider: activeMarketDataProvider.name,
       brokerStatus: this.brokerStatus,
+      angelOneStatus: angelOneClient.getSessionStatus(),
+      growwTokenStatus: groww.getTokenStatus(),
       databaseStatus: supabase ? 'ONLINE' : 'OFFLINE',
       telegramStatus: telegramBotToken && telegramChatId ? 'ONLINE' : 'NOT_CONFIGURED',
       memoryUsageMb: Number((memory.heapUsed / 1024 / 1024).toFixed(2)),
@@ -140,17 +190,17 @@ export class AutonomousBackgroundWorker {
 
     this.status = 'RUNNING';
 
-    // Verify Groww Authentication
-    if (!groww.isConfigured()) {
+    // Verify Market Data Provider Authentication
+    if (!activeMarketDataProvider.isReady()) {
       this.status = 'BROKER_AUTH_EXPIRED';
-      this.brokerStatus = 'NO_TOKEN';
-      console.warn('[Worker] Groww API token is not configured. Awaiting GROWW_API_TOKEN secret.');
+      this.brokerStatus = 'NO_CREDENTIALS';
+      console.warn('[Worker] Market data provider credentials missing. Please configure Angel One or Groww in .env.local.');
       await this.updateHeartbeat();
       return;
     }
 
     // Process both monitored instruments
-    const instruments: Array<{ name: 'NIFTY 50' | 'BANK NIFTY'; symbol: string }> = [
+    const instruments: Array<{ name: 'NIFTY 50' | 'BANK NIFTY'; symbol: 'NIFTY' | 'BANKNIFTY' }> = [
       { name: 'NIFTY 50', symbol: 'NIFTY' },
       { name: 'BANK NIFTY', symbol: 'BANKNIFTY' },
     ];
@@ -171,7 +221,7 @@ export class AutonomousBackgroundWorker {
    */
   private async processInstrument(
     instrument: 'NIFTY 50' | 'BANK NIFTY',
-    symbol: string
+    symbol: 'NIFTY' | 'BANKNIFTY'
   ): Promise<void> {
     try {
       // Calculate date range for current day (09:15 IST to now)
@@ -183,24 +233,38 @@ export class AutonomousBackgroundWorker {
       const startTime = `${yyyy}-${mm}-${dd} 09:15:00`;
       const endTime = `${yyyy}-${mm}-${dd} 15:30:00`;
 
-      // Fetch 5-minute closed candles from Groww API
+      // Fetch 5-minute closed candles from active market data provider
       let candles: MarketCandle[] = [];
       try {
-        candles = await groww.get5mCandles(symbol, startTime, endTime);
-        this.brokerStatus = 'CONNECTED_OK';
+        candles = await activeMarketDataProvider.get5mClosedCandles(symbol, startTime, endTime);
+        this.brokerStatus = `${activeMarketDataProvider.name} - CONNECTED_OK`;
       } catch (err: any) {
         const errMsg = err.message || String(err);
-        if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('GROWW_NOT_CONFIGURED')) {
+        const isAuthErr = (err instanceof AngelOneApiError && err.isAuthError) ||
+          (err instanceof GrowwApiError && err.isAuthError) ||
+          errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('GA005') ||
+          errMsg.includes('AG8001') || errMsg.includes('CONFIG_MISSING') ||
+          errMsg.includes('GROWW_NOT_CONFIGURED') || errMsg.includes('NO_BROKER_CONFIGURED');
+
+        if (isAuthErr) {
           this.status = 'BROKER_AUTH_EXPIRED';
-          this.brokerStatus = 'AUTH_EXPIRED';
-          console.error(`[Worker] Groww Auth Expired: ${errMsg}`);
+          this.brokerStatus = 'APPROVAL_OR_LOGIN_REQUIRED';
+          console.error(`[Worker] ${activeMarketDataProvider.name} Auth Error: ${errMsg}`);
           if (telegramBotToken && telegramChatId) {
             await TelegramService.sendSystemAlert(
               telegramBotToken,
               telegramChatId,
-              `⚠️ <b>Groww Broker Access Token Expired</b>\nAutomatic renewal requires a fresh token. Signals set to safe NO_DATA mode.\nTime: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`
+              `⚠️ <b>Market Data Auth Action Required</b>\nProvider: ${activeMarketDataProvider.name}\n${errMsg.slice(0, 180)}\n\n👉 Please verify credentials and TOTP secret in .env.local.\n\nSignals set to safe NO_DATA mode.\nTime: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`
             ).catch(() => {});
           }
+          return;
+        } else if (
+          (err instanceof AngelOneApiError && err.isRateLimit) ||
+          (err instanceof GrowwApiError && err.isRateLimit) ||
+          errMsg.includes('429')
+        ) {
+          this.brokerStatus = 'RATE_LIMITED';
+          console.warn(`[Worker] Rate limited while fetching ${symbol} candles: ${errMsg}`);
           return;
         } else {
           console.error(`[Worker] Error fetching candles for ${symbol}:`, errMsg);

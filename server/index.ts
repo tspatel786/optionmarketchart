@@ -76,6 +76,72 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 4. Secure Market Data Endpoints (keeps credentials strictly on the backend)
+  if (pathname === '/api/candles' && req.method === 'GET') {
+    const symbolParam = url.searchParams.get('symbol') || 'NIFTY';
+    const cleanSymbol: 'NIFTY' | 'BANKNIFTY' = (symbolParam === 'BANK NIFTY' || symbolParam === 'BANKNIFTY') ? 'BANKNIFTY' : 'NIFTY';
+
+    try {
+      const now = new Date();
+      const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      const yyyy = istNow.getFullYear();
+      const mm = String(istNow.getMonth() + 1).padStart(2, '0');
+      const dd = String(istNow.getDate()).padStart(2, '0');
+      const startTime = `${yyyy}-${mm}-${dd} 09:15:00`;
+      const endTime = `${yyyy}-${mm}-${dd} 15:30:00`;
+
+      const { activeMarketDataProvider } = await import('../src/services/marketDataProvider');
+      const candles = await activeMarketDataProvider.get5mClosedCandles(cleanSymbol, startTime, endTime);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, provider: activeMarketDataProvider.name, symbol: cleanSymbol, candles }));
+    } catch (err: any) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message || String(err) }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/quote' && req.method === 'GET') {
+    const symbolParam = url.searchParams.get('symbol') || 'NIFTY';
+    const cleanSymbol = (symbolParam === 'BANK NIFTY' || symbolParam === 'BANKNIFTY') ? 'BANKNIFTY' : 'NIFTY';
+
+    try {
+      const { activeMarketDataProvider } = await import('../src/services/marketDataProvider');
+      const quote = await activeMarketDataProvider.getQuote(cleanSymbol);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, provider: activeMarketDataProvider.name, quote }));
+    } catch (err: any) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message || String(err) }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/option-chain' && req.method === 'GET') {
+    const underlying = url.searchParams.get('underlying') || 'NIFTY';
+    const expiryDate = url.searchParams.get('expiry_date') || url.searchParams.get('expiryDate') || '';
+
+    if (!expiryDate) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'Missing expiry_date query parameter (YYYY-MM-DD)' }));
+      return;
+    }
+
+    try {
+      const { growwClient } = await import('./worker');
+      const chain = await growwClient.getOptionChain(underlying, expiryDate);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, data: chain }));
+    } catch (err: any) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message || String(err) }));
+    }
+    return;
+  }
+
   // 4. Static frontend file server (Serves dist folder)
   let filePath = path.join(distDir, pathname);
   

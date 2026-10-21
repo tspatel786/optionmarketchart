@@ -189,6 +189,7 @@ export const Dashboard: React.FC = () => {
     setQuote({
       symbol: selectedInstrument,
       exchange: 'NSE',
+      segment: 'CASH',
       lastPrice: last.close,
       dayChange: 45.2,
       dayChangePerc: 0.20,
