@@ -67,11 +67,38 @@ const INSTRUMENT_CONFIG: Record<
   'SENSEX': { symbol: 'SENSEX', basePrice: 80200, variance: 120, highOffset: 260, lowOffset: 210 },
 };
 
-export const Dashboard: React.FC = () => {
+export type DashboardViewSection = 
+  | 'ALL' 
+  | 'CHART' 
+  | 'CPR' 
+  | 'OPTION_CHAIN' 
+  | 'FII_DII' 
+  | 'HERO_ZERO' 
+  | 'STRATEGIES' 
+  | 'HISTORY';
+
+interface DashboardProps {
+  initialSection?: DashboardViewSection;
+  isRiskModalExternalOpen?: boolean;
+  onCloseRiskModalExternal?: () => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({
+  initialSection = 'ALL',
+  isRiskModalExternalOpen = false,
+  onCloseRiskModalExternal,
+}) => {
   const [selectedInstrument, setSelectedInstrument] = useState<SupportedInstrument>('NIFTY 50');
+  const [activeSection, setActiveSection] = useState<DashboardViewSection>(initialSection);
   const [growwToken, setGrowwToken] = useState<string>('');
   const [isTokenModalOpen, setIsTokenModalOpen] = useState<boolean>(false);
   const [isBrokerConnected, setIsBrokerConnected] = useState<boolean>(activeMarketDataProvider.isReady());
+
+  useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
 
   // Audio Alerts State
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => SoundAlertService.isSoundEnabled());
@@ -464,6 +491,32 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile-Friendly Interactive Section Navigation Bar */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar select-none py-1">
+        {[
+          { id: 'ALL', label: '📊 सर्व (All)' },
+          { id: 'CHART', label: '📈 लाईव्ह चार्ट' },
+          { id: 'CPR', label: '🎯 CPR प्रेडिक्टर' },
+          { id: 'OPTION_CHAIN', label: '📊 ऑप्शन चेन व PCR' },
+          { id: 'FII_DII', label: '🏛️ FII / DII डेटा' },
+          { id: 'HERO_ZERO', label: '⚡ हिरो-झिरो' },
+          { id: 'STRATEGIES', label: '🎯 ३८ स्ट्रॅटेजीज' },
+          { id: 'HISTORY', label: '📜 हिस्ट्री' },
+        ].map((sec) => (
+          <button
+            key={sec.id}
+            onClick={() => setActiveSection(sec.id as DashboardViewSection)}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition flex-shrink-0 text-xs flex items-center gap-1 ${
+              activeSection === sec.id
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/25 scale-105'
+                : 'bg-black/40 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800/60'
+            }`}
+          >
+            <span>{sec.label}</span>
+          </button>
+        ))}
+      </div>
+
       {errorMsg && (
         <div className="p-3 bg-red-950/70 border border-red-800 text-red-200 text-xs rounded-xl flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -472,184 +525,221 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Main Grid: Chart on Left, Live Signal Card on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-        <div className="lg:col-span-7">
-          <TradingViewChart 
-            candles={candles} 
-            levels={currentSignal?.levels}
-            instrument={selectedInstrument} 
-          />
-        </div>
+      {(activeSection === 'ALL' || activeSection === 'CHART') && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 animate-fadeIn">
+          <div className="lg:col-span-7">
+            <TradingViewChart 
+              candles={candles} 
+              levels={currentSignal?.levels}
+              instrument={selectedInstrument} 
+            />
+          </div>
 
-        <div className="lg:col-span-5">
-          <LiveSignalCard
-            signal={currentSignal}
-            quote={quote}
-            vix={vix}
-            advances={advances}
-            declines={declines}
-          />
+          <div className="lg:col-span-5">
+            <LiveSignalCard
+              signal={currentSignal}
+              quote={quote}
+              vix={vix}
+              advances={advances}
+              declines={declines}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Analytics Hub: CPR Daily Predictor & Option Chain / PCR Meter */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {cprLevels && (
+      {/* Analytics Hub 1: CPR Daily Predictor */}
+      {(activeSection === 'ALL' || activeSection === 'CPR') && cprLevels && (
+        <div className={activeSection === 'ALL' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6' : 'animate-fadeIn'}>
           <CprAnalysisCard
             cprLevels={cprLevels}
             currentPrice={quote?.lastPrice || INSTRUMENT_CONFIG[selectedInstrument].basePrice}
             instrument={selectedInstrument}
           />
-        )}
-        {optionChain && (
+          {activeSection === 'ALL' && optionChain && (
+            <OptionChainAnalyticsCard
+              analysis={optionChain}
+              instrument={selectedInstrument}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Option Chain Analytics Standalone View */}
+      {activeSection === 'OPTION_CHAIN' && optionChain && (
+        <div className="animate-fadeIn">
           <OptionChainAnalyticsCard
             analysis={optionChain}
             instrument={selectedInstrument}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Analytics Hub 2: Institutional Flow (FII/DII) & Expiry Day Hero-Zero Radar */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <FiiDiiCard />
-        <HeroZeroRadarCard
-          instrument={selectedInstrument}
-          spotPrice={quote?.lastPrice || INSTRUMENT_CONFIG[selectedInstrument].basePrice}
-        />
-      </div>
+      {(activeSection === 'ALL') && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 animate-fadeIn">
+          <FiiDiiCard />
+          <HeroZeroRadarCard
+            instrument={selectedInstrument}
+            spotPrice={quote?.lastPrice || INSTRUMENT_CONFIG[selectedInstrument].basePrice}
+          />
+        </div>
+      )}
+
+      {/* FII/DII Standalone View */}
+      {activeSection === 'FII_DII' && (
+        <div className="animate-fadeIn">
+          <FiiDiiCard />
+        </div>
+      )}
+
+      {/* Hero-Zero Standalone View */}
+      {activeSection === 'HERO_ZERO' && (
+        <div className="animate-fadeIn">
+          <HeroZeroRadarCard
+            instrument={selectedInstrument}
+            spotPrice={quote?.lastPrice || INSTRUMENT_CONFIG[selectedInstrument].basePrice}
+          />
+        </div>
+      )}
 
       {/* 38 Intraday Strategies Hub */}
-      <div className="bg-[#0d1424]/90 border border-gray-800/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-800 gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-accentGold/20 border border-accentGold/40 rounded-lg text-accentGold">
-                <Target className="w-4 h-4" />
-              </span>
-              <h3 className="text-sm sm:text-base font-bold text-white">
-                38 Intraday Strategies (Chart Patterns & Price Action Hub)
-              </h3>
-            </div>
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              Strict 75%+ Win-Rate Gate active. Includes M Pattern, W Pattern, Head & Shoulders, and Retest Bounce Setups.
-            </p>
-          </div>
-
-          {/* Strategy Select */}
-          <div className="w-full sm:w-auto">
-            <select
-              value={selectedStrategyId}
-              onChange={(e) => setSelectedStrategyId(Number(e.target.value))}
-              aria-label="Select Trading Strategy"
-              className="w-full sm:w-auto bg-black/50 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-medium focus:outline-none focus:border-cyan-500"
-            >
-              {strategySignals.map(s => {
-                const isQual = isStrategyAuthorizedForSignals(s.strategyId);
-                return (
-                  <option key={s.strategyId} value={s.strategyId}>
-                    {isQual ? '🟢' : '🔒'} Strategy {s.strategyId}: {s.strategyName} {isQual ? '(Active)' : '(Muted)'}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
-
-        {/* Selected Strategy Display Card */}
-        {(() => {
-          const currentStrat = strategySignals.find(s => s.strategyId === selectedStrategyId) || strategySignals[0];
-          if (!currentStrat) return null;
-
-          const isCE = currentStrat.action === 'BUY_CE';
-          const isPE = currentStrat.action === 'BUY_PE';
-          const isWait = currentStrat.action === 'WAIT';
-          const isQualified = isStrategyAuthorizedForSignals(currentStrat.strategyId);
-
-          return (
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-black/40 rounded-xl border border-gray-800">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-bold text-white">
-                      {currentStrat.strategyName}
-                    </span>
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700">
-                      {currentStrat.category}
-                    </span>
-                    {isQualified ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                        🟢 ACTIVE IN ENGINE
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950/60 text-rose-400 border border-rose-900/80">
-                        🔒 MUTED (&lt; 75% WIN RATE)
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-300 mt-1 font-medium">
-                    {currentStrat.ruleTriggered}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2.5 flex-shrink-0">
-                  <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                    isCE
-                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-700 shadow-md'
-                      : isPE
-                      ? 'bg-rose-950 text-rose-400 border border-rose-700 shadow-md'
-                      : 'bg-amber-950 text-amber-300 border border-amber-700'
-                  }`}>
-                    {isCE && <TrendingUp className="w-3.5 h-3.5" />}
-                    {isPE && <TrendingDown className="w-3.5 h-3.5" />}
-                    {isWait && <PauseCircle className="w-3.5 h-3.5" />}
-                    {currentStrat.action === 'BUY_CE' ? 'BUY CE (CALL)' : currentStrat.action === 'BUY_PE' ? 'BUY PE (PUT)' : 'WAIT (NO TRADE)'}
-                  </span>
-
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 bg-gray-800 border border-gray-700 rounded-lg text-accentGold">
-                    {currentStrat.confidence}% Match
-                  </span>
-                </div>
+      {(activeSection === 'ALL' || activeSection === 'STRATEGIES') && (
+        <div className="bg-[#0d1424]/90 border border-gray-800/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-800 gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-accentGold/20 border border-accentGold/40 rounded-lg text-accentGold">
+                  <Target className="w-4 h-4" />
+                </span>
+                <h3 className="text-sm sm:text-base font-bold text-white">
+                  38 Intraday Strategies (Chart Patterns & Price Action Hub)
+                </h3>
               </div>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Strict 75%+ Win-Rate Gate active. Includes M Pattern, W Pattern, Head & Shoulders, and Retest Bounce Setups.
+              </p>
+            </div>
 
-              {/* R:R Targets Grid */}
-              {currentStrat.levels && (isCE || isPE) && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                  <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
-                    <span className="text-[10px] text-gray-400 block font-medium">Entry</span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-cyan-300 mt-0.5 block">
-                      ₹{currentStrat.levels.entryPrice.toFixed(2)}
-                    </span>
+            {/* Strategy Select */}
+            <div className="w-full sm:w-auto">
+              <select
+                value={selectedStrategyId}
+                onChange={(e) => setSelectedStrategyId(Number(e.target.value))}
+                aria-label="Select Trading Strategy"
+                className="w-full sm:w-auto bg-black/50 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-medium focus:outline-none focus:border-cyan-500"
+              >
+                {strategySignals.map(s => {
+                  const isQual = isStrategyAuthorizedForSignals(s.strategyId);
+                  return (
+                    <option key={s.strategyId} value={s.strategyId}>
+                      {isQual ? '🟢' : '🔒'} Strategy {s.strategyId}: {s.strategyName} {isQual ? '(Active)' : '(Muted)'}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          {/* Selected Strategy Display Card */}
+          {(() => {
+            const currentStrat = strategySignals.find(s => s.strategyId === selectedStrategyId) || strategySignals[0];
+            if (!currentStrat) return null;
+
+            const isCE = currentStrat.action === 'BUY_CE';
+            const isPE = currentStrat.action === 'BUY_PE';
+            const isWait = currentStrat.action === 'WAIT';
+            const isQualified = isStrategyAuthorizedForSignals(currentStrat.strategyId);
+
+            return (
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-black/40 rounded-xl border border-gray-800">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-bold text-white">
+                        {currentStrat.strategyName}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700">
+                        {currentStrat.category}
+                      </span>
+                      {isQualified ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                          🟢 ACTIVE IN ENGINE
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950/60 text-rose-400 border border-rose-900/80">
+                          🔒 MUTED (&lt; 75% WIN RATE)
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-300 mt-1 font-medium">
+                      {currentStrat.ruleTriggered}
+                    </p>
                   </div>
 
-                  <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
-                    <span className="text-[10px] text-gray-400 block font-medium">Stop Loss</span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-rose-400 mt-0.5 block">
-                      ₹{currentStrat.levels.stopLoss.toFixed(2)}
+                  <div className="flex items-center gap-2.5 flex-shrink-0">
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                      isCE
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-700 shadow-md'
+                        : isPE
+                        ? 'bg-rose-950 text-rose-400 border border-rose-700 shadow-md'
+                        : 'bg-amber-950 text-amber-300 border border-amber-700'
+                    }`}>
+                      {isCE && <TrendingUp className="w-3.5 h-3.5" />}
+                      {isPE && <TrendingDown className="w-3.5 h-3.5" />}
+                      {isWait && <PauseCircle className="w-3.5 h-3.5" />}
+                      {currentStrat.action === 'BUY_CE' ? 'BUY CE (CALL)' : currentStrat.action === 'BUY_PE' ? 'BUY PE (PUT)' : 'WAIT (NO TRADE)'}
                     </span>
-                  </div>
 
-                  <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
-                    <span className="text-[10px] text-gray-400 block font-medium">Target 1 (1.5R)</span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-emerald-400 mt-0.5 block">
-                      ₹{currentStrat.target1_5R ? currentStrat.target1_5R.toFixed(2) : currentStrat.levels.target1.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
-                    <span className="text-[10px] text-gray-400 block font-medium">Target 2 (2.0R)</span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-green-300 mt-0.5 block">
-                      ₹{currentStrat.target2R ? currentStrat.target2R.toFixed(2) : currentStrat.levels.target2.toFixed(2)}
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-gray-800 border border-gray-700 rounded-lg text-accentGold">
+                      {currentStrat.confidence}% Match
                     </span>
                   </div>
                 </div>
-              )}
-            </div>
-          );
-        })()}
-      </div>
+
+                {/* R:R Targets Grid */}
+                {currentStrat.levels && (isCE || isPE) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
+                      <span className="text-[10px] text-gray-400 block font-medium">Entry</span>
+                      <span className="text-xs sm:text-sm font-bold font-mono text-cyan-300 mt-0.5 block">
+                        ₹{currentStrat.levels.entryPrice.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
+                      <span className="text-[10px] text-gray-400 block font-medium">Stop Loss</span>
+                      <span className="text-xs sm:text-sm font-bold font-mono text-rose-400 mt-0.5 block">
+                        ₹{currentStrat.levels.stopLoss.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
+                      <span className="text-[10px] text-gray-400 block font-medium">Target 1 (1.5R)</span>
+                      <span className="text-xs sm:text-sm font-bold font-mono text-emerald-400 mt-0.5 block">
+                        ₹{currentStrat.target1_5R ? currentStrat.target1_5R.toFixed(2) : currentStrat.levels.target1.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-gray-800">
+                      <span className="text-[10px] text-gray-400 block font-medium">Target 2 (2.0R)</span>
+                      <span className="text-xs sm:text-sm font-bold font-mono text-green-300 mt-0.5 block">
+                        ₹{currentStrat.target2R ? currentStrat.target2R.toFixed(2) : currentStrat.levels.target2.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Signal History Table */}
-      <SignalHistoryTable signals={signalHistory} />
+      {(activeSection === 'ALL' || activeSection === 'HISTORY') && (
+        <div className="animate-fadeIn">
+          <SignalHistoryTable signals={signalHistory} />
+        </div>
+      )}
 
       {/* Telegram Configuration Modal */}
       <TelegramSettingsModal
@@ -661,8 +751,11 @@ export const Dashboard: React.FC = () => {
 
       {/* Position Sizing & Risk Management Modal */}
       <PositionSizingModal
-        isOpen={isRiskModalOpen}
-        onClose={() => setIsRiskModalOpen(false)}
+        isOpen={isRiskModalOpen || isRiskModalExternalOpen}
+        onClose={() => {
+          setIsRiskModalOpen(false);
+          onCloseRiskModalExternal?.();
+        }}
         instrument={selectedInstrument}
         defaultEntryPrice={currentSignal?.levels?.entryPrice || (selectedInstrument === 'NIFTY 50' ? 120 : 250)}
         defaultStopLossPrice={currentSignal?.levels?.stopLoss || (selectedInstrument === 'NIFTY 50' ? 90 : 200)}
