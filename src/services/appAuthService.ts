@@ -9,6 +9,16 @@ export interface AppUser {
 
 const AUTH_STORAGE_KEY = 'ALGO_APP_AUTH_SESSION_V1';
 
+// Primary authorized user profile
+export const PRIMARY_USER: AppUser = {
+  id: 'usr_taufik_01',
+  username: 'taufik',
+  name: 'Taufik Patel',
+  email: 'tufikpatel23@gmail.com',
+  role: 'ADMIN',
+  loginAt: '',
+};
+
 // In-memory fallback for SSR and testing environments
 const memoryStore = new Map<string, string>();
 
@@ -92,14 +102,10 @@ export class AppAuthService {
    */
   public static loginWithPin(pin: string, remember: boolean = true): { success: boolean; error?: string; user?: AppUser } {
     const cleanPin = pin.trim();
-    // Default master trader PIN is 9096 or any 4+ digit authorized PIN
+    // Authorized PINs: 9096 or 4+ digits
     if (cleanPin === '9096' || cleanPin === '1234' || cleanPin.length >= 4) {
       const user: AppUser = {
-        id: 'usr_trader_01',
-        username: 'pro_trader',
-        name: 'Master Trader',
-        email: 'trader@algochart.in',
-        role: 'TRADER',
+        ...PRIMARY_USER,
         loginAt: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
       };
 
@@ -118,6 +124,7 @@ export class AppAuthService {
 
   /**
    * Login with Username/Email & Password
+   * Configured for: tufikpatel23@gmail.com / Taufik@786
    */
   public static loginWithCredentials(
     identifier: string,
@@ -128,20 +135,26 @@ export class AppAuthService {
     const cleanPass = pass.trim();
 
     if (!cleanId || !cleanPass) {
-      return { success: false, error: 'कृपया युझरनेम आणि पासवर्ड भरा.' };
+      return { success: false, error: 'कृपया ईमेल/युझरनेम आणि पासवर्ड भरा.' };
     }
 
-    if (
+    // Exact match for Taufik Patel credentials
+    const isTaufikMatch =
+      (cleanId === 'tufikpatel23@gmail.com' || cleanId === 'taufik' || cleanId === 'taufikpatel') &&
+      cleanPass === 'Taufik@786';
+
+    // Also support fallback PIN or admin credentials
+    const isAlternativeMatch =
+      (cleanId === 'tufikpatel23@gmail.com' && (cleanPass === '9096' || cleanPass === 'Taufik@786')) ||
       (cleanId === 'admin' && cleanPass === 'admin123') ||
-      (cleanId === 'trader' && (cleanPass === '9096' || cleanPass === 'trader123')) ||
-      (cleanPass.length >= 4)
-    ) {
+      (cleanId === 'trader' && (cleanPass === '9096' || cleanPass === 'Taufik@786')) ||
+      (cleanPass === 'Taufik@786');
+
+    if (isTaufikMatch || isAlternativeMatch) {
       const user: AppUser = {
-        id: `usr_${cleanId}`,
-        username: cleanId,
-        name: cleanId === 'admin' ? 'Administrator' : 'Master Trader',
-        email: `${cleanId}@algochart.in`,
-        role: cleanId === 'admin' ? 'ADMIN' : 'TRADER',
+        ...PRIMARY_USER,
+        name: cleanId === 'admin' ? 'Administrator' : 'Taufik Patel',
+        email: cleanId.includes('@') ? cleanId : 'tufikpatel23@gmail.com',
         loginAt: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
       };
 
@@ -155,7 +168,7 @@ export class AppAuthService {
       return { success: true, user };
     }
 
-    return { success: false, error: 'अवैध क्रेडेंशियल्स. युझरनेम किंवा पासवर्ड तपासा.' };
+    return { success: false, error: 'अवैध ईमेल किंवा पासवर्ड. कृपया योग्य क्रेडेंशियल्स टाका.' };
   }
 
   /**
@@ -163,11 +176,7 @@ export class AppAuthService {
    */
   public static instantAccess(): AppUser {
     const user: AppUser = {
-      id: 'usr_trader_instant',
-      username: 'algo_trader',
-      name: 'Option Trader',
-      email: 'algo@optionchart.in',
-      role: 'TRADER',
+      ...PRIMARY_USER,
       loginAt: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
     };
 

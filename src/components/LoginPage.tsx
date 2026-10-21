@@ -12,7 +12,8 @@ import {
   Zap, 
   Sparkles,
   AlertCircle,
-  Smartphone
+  Smartphone,
+  Mail
 } from 'lucide-react';
 import { AppAuthService, type AppUser } from '../services/appAuthService';
 
@@ -21,19 +22,35 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const [tab, setTab] = useState<'pin' | 'credentials'>('pin');
+  const [tab, setTab] = useState<'credentials' | 'pin'>('credentials');
+  
+  // Credentials mode state (Configured for Taufik Patel)
+  const [username, setUsername] = useState<string>('tufikpatel23@gmail.com');
+  const [password, setPassword] = useState<string>('Taufik@786');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   
   // PIN mode state
   const [pin, setPin] = useState<string>('');
   
-  // Credentials mode state
-  const [username, setUsername] = useState<string>('trader');
-  const [password, setPassword] = useState<string>('9096');
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  
   const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const handleCredentialsSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    setTimeout(() => {
+      const res = AppAuthService.loginWithCredentials(username, password, rememberMe);
+      if (res.success && res.user) {
+        onLoginSuccess(res.user);
+      } else {
+        setErrorMessage(res.error || 'अवैध ईमेल किंवा पासवर्ड.');
+        setIsSubmitting(false);
+      }
+    }, 200);
+  };
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,23 +65,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         setErrorMessage(res.error || 'अवैध PIN. कृपया पुन्हा प्रयत्न करा.');
         setIsSubmitting(false);
       }
-    }, 250);
-  };
-
-  const handleCredentialsSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setIsSubmitting(true);
-
-    setTimeout(() => {
-      const res = AppAuthService.loginWithCredentials(username, password, rememberMe);
-      if (res.success && res.user) {
-        onLoginSuccess(res.user);
-      } else {
-        setErrorMessage(res.error || 'अवैध युझरनेम किंवा पासवर्ड.');
-        setIsSubmitting(false);
-      }
-    }, 250);
+    }, 200);
   };
 
   const handleQuickLogin = () => {
@@ -73,7 +74,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setTimeout(() => {
       const user = AppAuthService.instantAccess();
       onLoginSuccess(user);
-    }, 200);
+    }, 150);
   };
 
   const handleKeypadPress = (digit: string) => {
@@ -81,7 +82,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       const newPin = pin + digit;
       setPin(newPin);
       if (newPin.length === 4) {
-        // Auto-check PIN when 4 digits are entered
         setTimeout(() => {
           const res = AppAuthService.loginWithPin(newPin, rememberMe);
           if (res.success && res.user) {
@@ -112,7 +112,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         }}
       />
 
-      {/* Top Mini Header */}
+      {/* Top Header */}
       <header className="relative z-10 w-full px-4 py-4 sm:py-6 max-w-6xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl shadow-lg shadow-blue-500/20 text-white flex-shrink-0">
@@ -155,29 +155,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <Lock className="w-6 h-6" />
               </div>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                ट्रेडर लॉगिन (Terminal Login)
+                ट्रेडर लॉगिन (Terminal Access)
               </h2>
               <p className="text-xs text-gray-400">
-                सुरक्षित ट्रेडिंग टर्मिनलमध्ये प्रवेश करण्यासाठी लॉगिन करा
+                Welcome, <strong>Taufik Patel</strong>! Sign in to access your terminal.
               </p>
             </div>
 
-            {/* Fast Quick 1-Click Access Button (Most Mobile Friendly!) */}
+            {/* Fast Quick 1-Click Access Button */}
             <div className="p-3 bg-gradient-to-r from-blue-950/40 via-cyan-950/30 to-blue-950/40 border border-cyan-800/40 rounded-xl">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-left">
                   <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-accentGold" /> 1-Click Quick Access
+                    <Sparkles className="w-3.5 h-3.5 text-accentGold" /> 1-Click Trader Access
                   </span>
                   <span className="text-[10px] text-gray-400 block">
-                    पासवर्ड न टाकता थेट सुरू करा
+                    तौफिक पटेल (Taufik Patel)
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleQuickLogin}
                   disabled={isSubmitting}
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs rounded-lg shadow-md transition flex items-center gap-1 active:scale-95"
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs rounded-lg shadow-md transition flex items-center gap-1 active:scale-95"
                 >
                   <Zap className="w-3.5 h-3.5" />
                   प्रवेश करा
@@ -185,8 +185,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* Tab Switcher: PIN vs Username/Password */}
+            {/* Tab Switcher: Email/Password vs Security PIN */}
             <div className="grid grid-cols-2 p-1 bg-black/40 border border-gray-800/80 rounded-xl text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => { setTab('credentials'); setErrorMessage(''); }}
+                className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  tab === 'credentials'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Email & Password
+              </button>
               <button
                 type="button"
                 onClick={() => { setTab('pin'); setErrorMessage(''); }}
@@ -199,18 +211,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <KeyRound className="w-3.5 h-3.5" />
                 Security PIN
               </button>
-              <button
-                type="button"
-                onClick={() => { setTab('credentials'); setErrorMessage(''); }}
-                className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
-                  tab === 'credentials'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                ID & Password
-              </button>
             </div>
 
             {/* Error Message */}
@@ -219,6 +219,90 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{errorMessage}</span>
               </div>
+            )}
+
+            {/* Credentials Tab Form */}
+            {tab === 'credentials' && (
+              <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-300 font-semibold block">
+                    ईमेल आयडी (Email Address)
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-cyan-400 absolute left-3 top-3 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="tufikpatel23@gmail.com"
+                      className="w-full bg-black/40 border border-gray-800 rounded-xl py-2.5 pl-9 pr-3 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-gray-300 font-semibold block">
+                      पासवर्ड (Password)
+                    </label>
+                    <span className="text-[10px] text-gray-500 font-mono">
+                      (Taufik@786)
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-cyan-400 absolute left-3 top-3 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Taufik@786"
+                      className="w-full bg-black/40 border border-gray-800 rounded-xl py-2.5 pl-9 pr-10 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember Me */}
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded bg-gray-900 border-gray-700 text-blue-500 focus:ring-0"
+                    />
+                    <span>लॉगिन सेव्ह ठेवा (Remember Me)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername('tufikpatel23@gmail.com');
+                      setPassword('Taufik@786');
+                    }}
+                    className="text-cyan-400 hover:underline text-[11px]"
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <span>साइन इन करा (Sign In)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
             )}
 
             {/* PIN Tab Form */}
@@ -251,7 +335,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     ))}
                   </div>
 
-                  {/* Hidden input for physical keyboard entry */}
+                  {/* Hidden input for keyboard */}
                   <input
                     type="password"
                     inputMode="numeric"
@@ -320,76 +404,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </form>
             )}
 
-            {/* Credentials Tab Form */}
-            {tab === 'credentials' && (
-              <form onSubmit={handleCredentialsSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-300 font-semibold block">
-                    युझरनेम / Trader ID
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="e.g. trader or admin"
-                      className="w-full bg-black/40 border border-gray-800 rounded-xl py-2.5 pl-9 pr-3 text-sm text-white focus:outline-none focus:border-cyan-500"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-300 font-semibold block">
-                    पासवर्ड / PIN
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter password (default: 9096)"
-                      className="w-full bg-black/40 border border-gray-800 rounded-xl py-2.5 pl-9 pr-10 text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember Me */}
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded bg-gray-900 border-gray-700 text-blue-500 focus:ring-0"
-                    />
-                    <span>लॉगिन सेव्ह ठेवा</span>
-                  </label>
-                  <span className="text-gray-500 text-[11px]">Default: trader / 9096</span>
-                </div>
-
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-98"
-                >
-                  <span>साइन इन करा (Sign In)</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </form>
-            )}
-
             {/* Security Badge */}
             <div className="pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px] text-gray-500">
               <span className="flex items-center gap-1.5">
@@ -402,9 +416,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
       </main>
 
-      {/* Footer / Regulatory Notice */}
+      {/* Footer */}
       <footer className="relative z-10 py-3 text-center text-[10px] text-gray-500 px-4">
-        Autonomous Algo Terminal • NIFTY & BANK NIFTY 5-Minute Closed Price Action Signals
+        Autonomous Algo Terminal • User: Taufik Patel (tufikpatel23@gmail.com)
       </footer>
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AppAuthService } from '../appAuthService';
 
-describe('AppAuthService (Web Application Authentication)', () => {
+describe('AppAuthService (Taufik Patel Authentication)', () => {
   beforeEach(() => {
     AppAuthService.logout();
   });
@@ -11,36 +11,44 @@ describe('AppAuthService (Web Application Authentication)', () => {
     expect(AppAuthService.getCurrentUser()).toBeNull();
   });
 
-  it('should authenticate successfully with default master PIN 9096', () => {
-    const res = AppAuthService.loginWithPin('9096', true);
+  it('should authenticate successfully with tufikpatel23@gmail.com and Taufik@786', () => {
+    const res = AppAuthService.loginWithCredentials('tufikpatel23@gmail.com', 'Taufik@786', true);
     expect(res.success).toBe(true);
-    expect(res.user?.username).toBe('pro_trader');
+    expect(res.user?.name).toBe('Taufik Patel');
+    expect(res.user?.email).toBe('tufikpatel23@gmail.com');
     expect(AppAuthService.isAuthenticated()).toBe(true);
-    expect(AppAuthService.getCurrentUser()?.username).toBe('pro_trader');
+    expect(AppAuthService.getCurrentUser()?.name).toBe('Taufik Patel');
   });
 
-  it('should reject invalid PIN', () => {
-    const res = AppAuthService.loginWithPin('12', true);
+  it('should authenticate with username taufik and password Taufik@786', () => {
+    const res = AppAuthService.loginWithCredentials('taufik', 'Taufik@786', true);
+    expect(res.success).toBe(true);
+    expect(res.user?.name).toBe('Taufik Patel');
+  });
+
+  it('should authenticate successfully with master PIN 9096', () => {
+    const res = AppAuthService.loginWithPin('9096', true);
+    expect(res.success).toBe(true);
+    expect(res.user?.name).toBe('Taufik Patel');
+    expect(AppAuthService.isAuthenticated()).toBe(true);
+  });
+
+  it('should reject invalid password for tufikpatel23@gmail.com', () => {
+    const res = AppAuthService.loginWithCredentials('tufikpatel23@gmail.com', 'WrongPass', true);
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
     expect(AppAuthService.isAuthenticated()).toBe(false);
   });
 
-  it('should authenticate with username and password', () => {
-    const res = AppAuthService.loginWithCredentials('trader', '9096', true);
-    expect(res.success).toBe(true);
-    expect(res.user?.role).toBe('TRADER');
-    expect(AppAuthService.isAuthenticated()).toBe(true);
-  });
-
-  it('should support instant 1-click access', () => {
+  it('should support instant 1-click access as Taufik Patel', () => {
     const user = AppAuthService.instantAccess();
-    expect(user.username).toBe('algo_trader');
+    expect(user.name).toBe('Taufik Patel');
+    expect(user.email).toBe('tufikpatel23@gmail.com');
     expect(AppAuthService.isAuthenticated()).toBe(true);
   });
 
   it('should logout cleanly and clear session', () => {
-    AppAuthService.loginWithPin('9096', true);
+    AppAuthService.loginWithCredentials('tufikpatel23@gmail.com', 'Taufik@786', true);
     expect(AppAuthService.isAuthenticated()).toBe(true);
 
     AppAuthService.logout();
